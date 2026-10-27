@@ -52,16 +52,20 @@ public class JwtUtil {
     /**
      * 生成 JWT Token。
      *
-     * @param userId   用户 ID
-     * @param username 用户名
-     * @param role     角色
+     * @param userId     用户 ID
+     * @param username   用户名
+     * @param role       角色
+     * @param department 部门（可为 null）
      * @return JWT 字符串
      */
-    public String generateToken(Long userId, String username, String role) {
+    public String generateToken(Long userId, String username, String role, String department) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("username", username);
         claims.put("role", role);
+        if (department != null) {
+            claims.put("department", department);
+        }
 
         Date now = new Date();
         Date expiry = new Date(now.getTime() + getExpirationMillis());
@@ -73,6 +77,13 @@ public class JwtUtil {
                 .expiration(expiry)
                 .signWith(getSecretKey())
                 .compact();
+    }
+
+    /**
+     * 兼容旧版调用（无 department）。
+     */
+    public String generateToken(Long userId, String username, String role) {
+        return generateToken(userId, username, role, null);
     }
 
     /**

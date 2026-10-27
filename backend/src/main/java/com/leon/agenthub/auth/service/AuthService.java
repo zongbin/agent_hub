@@ -47,8 +47,8 @@ public class AuthService {
             throw new BusinessException(401, "用户名或密码错误");
         }
 
-        // 4. 生成 JWT
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+        // 4. 生成 JWT（携带 role 和 department）
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole(), user.getDepartment());
 
         // 5. 构造响应
         UserInfo userInfo = UserInfo.builder()
@@ -85,6 +85,58 @@ public class AuthService {
                 .role(user.getRole())
                 .department(user.getDepartment())
                 .build();
+    }
+
+    /**
+     * 更新个人资料。
+     *
+     * @param userId  用户 ID
+     * @param request 更新内容（realName、email、department）
+     * @return 更新后的用户信息
+     */
+    public UserInfo updateProfile(Long userId, com.leon.agenthub.auth.dto.UpdateProfileRequest request) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        if (request.getRealName() != null) {
+            user.setRealName(request.getRealName());
+        }
+        if (request.getEmail() != null) {
+            user.setEmail(request.getEmail());
+        }
+        if (request.getDepartment() != null) {
+            user.setDepartment(request.getDepartment());
+        }
+        userMapper.updateById(user);
+
+        log.info("User {} profile updated", user.getUsername());
+        return UserInfo.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .realName(user.getRealName())
+                .role(user.getRole())
+                .department(user.getDepartment())
+                .build();
+    }
+
+    /**
+     * 修改密码 — 需校验原密码。
+     *
+     * @param userId  用户 ID
+     * @param request 原密码 + 新密码
+     */
+    public void changePassword(Long userId, com.leon.agenthub.auth.dto.ChangePasswordRequest request) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new BusinessException(400, "原密码错误");
+        }
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userMapper.updateById(user);
+        log.info("User {} password changed", user.getUsername());
     }
 
     /**

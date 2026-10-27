@@ -33,7 +33,8 @@ public class SecurityConfig {
             "/webjars/**",
             "/favicon.ico",
             "/swagger-resources/**",
-            "/swagger-ui.html"
+            "/swagger-ui.html",
+            "/permissions/test/whoami"
     };
 
     @Bean

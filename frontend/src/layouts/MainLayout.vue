@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -8,19 +8,34 @@ import {
   Reading,
   ChatLineRound,
   Cpu,
-  SwitchButton
+  SwitchButton,
+  UserFilled,
+  ArrowDown
 } from '@element-plus/icons-vue'
+import ProfileDrawer from '@/components/ProfileDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+
+/** 当前用户是否为管理员 */
+const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
+
+/** 个人设置抽屉 */
+const profileDrawerVisible = ref(false)
+
+/** 打开个人设置抽屉 */
+function openProfileDrawer() {
+  profileDrawerVisible.value = true
+}
 
 /** 导航菜单 */
 const menuItems = [
   { path: '/dashboard', title: '工作台', icon: HomeFilled },
   { path: '/knowledge', title: '知识库', icon: Reading },
   { path: '/qa', title: '智能问答', icon: ChatLineRound },
-  { path: '/agent', title: 'SuperAgent', icon: Cpu }
+  { path: '/agent', title: 'SuperAgent', icon: Cpu },
+  { path: '/permission', title: '权限管理', icon: UserFilled, adminOnly: true }
 ]
 
 /** 当前页标题 */
@@ -67,6 +82,7 @@ async function handleLogout() {
           :to="item.path"
           class="nav-item"
           :class="{ active: route.path === item.path }"
+          v-show="!item.adminOnly || isAdmin"
         >
           <el-icon :size="18">
             <component :is="item.icon" />
@@ -98,9 +114,15 @@ async function handleLogout() {
       <header class="header">
         <h2 class="page-title">{{ pageTitle }}</h2>
         <div class="header-right">
-          <el-tag type="info" size="small">
-            {{ authStore.user?.role }}
-          </el-tag>
+          <div class="user-trigger" @click="openProfileDrawer">
+            <el-avatar :size="32" class="trigger-avatar">
+              {{ authStore.user?.realName?.[0] || authStore.user?.username?.[0] || 'U' }}
+            </el-avatar>
+            <span class="trigger-name">
+              {{ authStore.user?.realName || authStore.user?.username }}
+            </span>
+            <el-icon :size="12" class="trigger-arrow"><ArrowDown /></el-icon>
+          </div>
         </div>
       </header>
 
@@ -109,6 +131,9 @@ async function handleLogout() {
         <router-view />
       </div>
     </main>
+
+    <!-- 个人设置抽屉 -->
+    <ProfileDrawer v-model="profileDrawerVisible" />
   </div>
 </template>
 
@@ -284,6 +309,49 @@ async function handleLogout() {
 
 .header-right {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.user-trigger:hover {
+  background: #F1F5F9;
+}
+
+.trigger-avatar {
+  background: linear-gradient(135deg, #818CF8, #06B6D4);
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+}
+
+.trigger-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trigger-arrow {
+  color: #94A3B8;
+  transition: transform 0.2s;
+}
+
+.user-trigger:hover .trigger-arrow {
+  transform: rotate(180deg);
 }
 
 .content-area {

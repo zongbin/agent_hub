@@ -9,8 +9,9 @@ export interface UserInfo {
   id: number
   username: string
   realName: string
+  email?: string
   role: string
-  department: string
+  department?: string
 }
 
 /** 登录响应 */

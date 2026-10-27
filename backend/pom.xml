@@ -55,7 +55,6 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- Redis（Lettuce 客户端，SSE 状态、缓存） -->

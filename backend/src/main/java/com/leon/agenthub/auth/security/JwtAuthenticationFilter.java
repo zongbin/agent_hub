@@ -11,13 +11,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 
 /**
  * JWT 认证过滤器 — 从请求头提取 Token，校验后注入 SecurityContext。
@@ -43,26 +41,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 Claims claims = jwtUtil.parseToken(token);
                 Long userId = claims.get("userId", Long.class);
+                String username = claims.get("username", String.class);
                 String role = claims.get("role", String.class);
+                String department = claims.get("department", String.class);
 
-                // 构造 Spring Security 认证对象（userId 作为 principal）
-                User userDetails = new User(
-                        String.valueOf(userId),
-                        "",
-                        Collections.emptyList()
+                // 构造自定义 UserDetails（携带 userId、role、department）
+                CustomUserDetails userDetails = new CustomUserDetails(
+                        userId, username, role, department
                 );
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,
                                 null,
-                                Collections.emptyList()
+                                userDetails.getAuthorities()
                         );
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                log.debug("JWT authenticated: userId={}, role={}", userId, role);
+                log.debug("JWT authenticated: userId={}, role={}, dept={}", userId, role, department);
             } catch (Exception e) {
                 log.warn("JWT authentication failed: {}", e.getMessage());
                 SecurityContextHolder.clearContext();
