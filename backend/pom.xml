@@ -26,6 +26,7 @@
         <tika.version>2.9.2</tika.version>
         <flyway.version>10.18.0</flyway.version>
         <pgvector.version>1.0.0</pgvector.version>
+        <hutool.version>5.8.46</hutool.version>
     </properties>
 
     <dependencies>
@@ -119,6 +120,19 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- Hutool 工具类 -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>${hutool.version}</version>
+        </dependency>
+
+        <!-- Spring Security（认证 + BCrypt 密码加密） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
         <!-- 测试 -->

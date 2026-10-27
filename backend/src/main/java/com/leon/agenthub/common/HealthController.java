@@ -87,16 +87,17 @@ public class HealthController {
     private ComponentHealth checkRedis() {
         ComponentHealth health = new ComponentHealth();
         try {
-            // 使用 execute 方式，自动管理连接生命周期
-            String pong = redisTemplate.execute((org.springframework.data.redis.connection.RedisConnection conn) ->
-                    conn.ping() != null ? conn.ping() : "ERROR"
-            );
-            if ("PONG".equalsIgnoreCase(pong)) {
+            // 用真实读写操作验证连通性（Lettuce 的 ping 在健康检查场景不稳定）
+            String testKey = "__healthcheck__";
+            redisTemplate.opsForValue().set(testKey, "ok");
+            String value = redisTemplate.opsForValue().get(testKey);
+            redisTemplate.delete(testKey);
+            if ("ok".equals(value)) {
                 health.setStatus("UP");
-                health.setDetail("PING -> PONG");
+                health.setDetail("read/write ok");
             } else {
                 health.setStatus("DOWN");
-                health.setDetail("unexpected response: " + pong);
+                health.setDetail("unexpected value: " + value);
             }
         } catch (Exception e) {
             health.setStatus("DOWN");
