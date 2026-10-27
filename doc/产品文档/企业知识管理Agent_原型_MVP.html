@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智知 AgentHub — MVP</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #4F46E5;
+            --primary-light: #818CF8;
+            --primary-dark: #3730A3;
+            --surface: #FFFFFF;
+            --surface-alt: #F8FAFC;
+            --surface-hover: #F1F5F9;
+            --border: #E2E8F0;
+            --text: #0F172A;
+            --text-secondary: #64748B;
+            --text-muted: #94A3B8;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --sidebar-width: 240px;
+            --header-height: 56px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--surface-alt);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ===== Layout ===== */
+        .app { display: flex; height: 100vh; }
+
+        /* ===== Sidebar ===== */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, #1E1B4B 0%, #312E81 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand {
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-brand .logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--primary-light), #06B6D4);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: bold;
+        }
+
+        .sidebar-brand h1 { font-size: 15px; font-weight: 700; }
+        .sidebar-brand span { font-size: 11px; opacity: 0.5; }
+
+        .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+
+        .nav-section-title {
+            font-size: 10px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1px;
+            opacity: 0.35; padding: 0 10px; margin: 12px 0 6px;
+        }
+
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 12px; border-radius: 8px;
+            cursor: pointer; transition: all 0.2s; font-size: 13px; opacity: 0.65;
+        }
+
+        .nav-item:hover { background: rgba(255,255,255,0.08); opacity: 1; }
+        .nav-item.active { background: rgba(255,255,255,0.15); opacity: 1; font-weight: 500; }
+        .nav-item .icon { width: 18px; text-align: center; font-size: 15px; }
+        .nav-item .badge {
+            margin-left: auto; background: #06B6D4;
+            font-size: 10px; padding: 1px 7px; border-radius: 10px;
+        }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .user-card {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px; border-radius: 8px; cursor: pointer;
+        }
+
+        .user-card:hover { background: rgba(255,255,255,0.08); }
+
+        .user-avatar {
+            width: 28px; height: 28px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-light), #06B6D4);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 600;
+        }
+
+        .user-info .name { font-size: 12px; font-weight: 500; }
+        .user-info .role { font-size: 10px; opacity: 0.45; }
+
+        /* ===== Main ===== */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        .header {
+            height: var(--header-height);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; padding: 0 20px; gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .header-search { flex: 1; max-width: 480px; position: relative; }
+
+        .header-search input {
+            width: 100%; padding: 8px 14px 8px 36px;
+            border: 1px solid var(--border); border-radius: 8px;
+            font-size: 13px; background: var(--surface-alt);
+            outline: none; transition: all 0.2s;
+        }
+
+        .header-search input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+        }
+
+        .header-search .search-icon {
+            position: absolute; left: 12px; top: 50%;
+            transform: translateY(-50%); color: var(--text-muted); font-size: 14px;
+        }
+
+        .header-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+        .header-btn {
+            width: 32px; height: 32px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--surface);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: var(--text-secondary); transition: all 0.2s; position: relative;
+        }
+
+        .header-btn:hover { background: var(--surface-hover); border-color: var(--primary); color: var(--primary); }
+
+        .header-btn .dot {
+            position: absolute; top: 5px; right: 5px;
+            width: 7px; height: 7px; background: var(--danger); border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        /* ===== Pages ===== */
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .page-content { flex: 1; overflow-y: auto; padding: 24px; }
+
+        .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .page-subtitle { color: var(--text-secondary); font-size: 13px; margin-bottom: 20px; }
+
+        /* ===== Dashboard Page ===== */
+        .page-dashboard { display: none; }
+        .page-dashboard.active { display: block; }
+
+        .stats-row {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px;
+        }
+
+        .stat-card .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+        .stat-card .stat-value { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+        .stat-card .stat-trend { font-size: 11px; margin-top: 4px; }
+        .stat-trend.up { color: var(--success); }
+        .stat-trend.neutral { color: var(--text-muted); }
+
+        .dash-row { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; }
+
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px;
+        }
+
+        .card-header {
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+        }
+
+        .card-title { font-size: 14px; font-weight: 600; }
+        .card-action { font-size: 12px; color: var(--primary); cursor: pointer; }
+        .card-action:hover { text-decoration: underline; }
+
+        .chart-area {
+            height: 140px; display: flex; align-items: flex-end; gap: 6px; padding: 16px 0 20px;
+        }
+
+        .chart-bar {
+            flex: 1; background: linear-gradient(180deg, var(--primary-light), var(--primary));
+            border-radius: 4px 4px 0 0; opacity: 0.75; min-width: 16px;
+            position: relative; transition: all 0.3s;
+        }
+
+        .chart-bar:hover { opacity: 1; transform: scaleY(1.05); transform-origin: bottom; }
+
+        .chart-bar .bar-label {
+            position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+            font-size: 10px; color: var(--text-muted);
+        }
+
+        .chart-bar .bar-value {
+            position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+            font-size: 10px; font-weight: 600; color: var(--text-secondary);
+        }
+
+        .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+        .quick-action-btn {
+            padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+            background: var(--surface); cursor: pointer; text-align: left;
+            transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-size: 13px;
+        }
+
+        .quick-action-btn:hover { border-color: var(--primary); background: rgba(79,70,229,0.03); }
+
+        .activity-list { display: flex; flex-direction: column; gap: 2px; }
+
+        .activity-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 10px; border-radius: 6px; transition: background 0.15s;
+        }
+
+        .activity-item:hover { background: var(--surface-alt); }
+
+        .activity-icon {
+            width: 28px; height: 28px; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; flex-shrink: 0;
+        }
+
+        .activity-text { font-size: 12px; line-height: 1.5; }
+        .activity-text strong { font-weight: 600; }
+        .activity-time { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+        /* ===== Q&A Page ===== */
+        .page-qa { display: none; }
+        .page-qa.active { display: flex; flex-direction: column; height: 100%; }
+
+        .qa-container {
+            display: flex; flex-direction: column; height: 100%;
+            max-width: 800px; margin: 0 auto; width: 100%;
+        }
+
+        .qa-header { text-align: center; padding: 24px 0 16px; }
+        .qa-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+        .qa-header p { color: var(--text-secondary); font-size: 13px; }
+
+        .qa-mode-toggle {
+            display: flex; justify-content: center; gap: 0;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; padding: 3px; margin: 0 auto 12px; width: fit-content;
+        }
+
+        .qa-mode-btn {
+            padding: 6px 18px; border-radius: 6px; font-size: 12px;
+            cursor: pointer; color: var(--text-secondary); transition: all 0.2s;
+            display: flex; align-items: center; gap: 5px;
+        }
+
+        .qa-mode-btn.active { background: var(--primary); color: white; font-weight: 500; }
+        .qa-mode-btn:hover:not(.active) { background: var(--surface-hover); }
+
+        .qa-suggestions {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 16px;
+        }
+
+        .qa-chip {
+            padding: 6px 14px; border: 1px solid var(--border);
+            border-radius: 18px; font-size: 12px; cursor: pointer;
+            background: var(--surface); transition: all 0.2s; color: var(--text-secondary);
+        }
+
+        .qa-chip:hover { border-color: var(--primary); color: var(--primary); }
+        .qa-chip.agent-chip { border-color: rgba(79,70,229,0.3); background: rgba(79,70,229,0.03); }
+        .qa-chip.agent-chip:hover { border-color: var(--primary); background: rgba(79,70,229,0.08); }
+
+        .qa-messages {
+            flex: 1; overflow-y: auto; padding: 12px 0;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+
+        .qa-msg { display: flex; gap: 10px; max-width: 100%; }
+        .qa-msg.user { flex-direction: row-reverse; }
+
+        .qa-msg-avatar {
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 600; flex-shrink: 0;
+        }
+
+        .qa-msg.assistant .qa-msg-avatar {
+            background: linear-gradient(135deg, var(--primary), #06B6D4); color: white;
+        }
+
+        .qa-msg.user .qa-msg-avatar { background: var(--surface-hover); color: var(--text-secondary); }
+
+        .qa-bubble {
+            max-width: 75%; padding: 12px 16px; border-radius: 10px; font-size: 13px; line-height: 1.7;
+        }
+
+        .qa-msg.assistant .qa-bubble {
+            background: var(--surface); border: 1px solid var(--border); border-top-left-radius: 4px;
+        }
+
+        .qa-msg.user .qa-bubble {
+            background: var(--primary); color: white; border-top-right-radius: 4px;
+        }
+
+        .qa-citations {
+            margin-top: 10px; display: flex; flex-wrap: wrap; gap: 4px;
+        }
+
+        .qa-citation {
+            display: inline-flex; align-items: center; gap: 3px;
+            padding: 3px 8px; background: rgba(79,70,229,0.08);
+            border-radius: 4px; font-size: 11px; color: var(--primary); cursor: pointer;
+        }
+
+        .qa-citation:hover { background: rgba(79,70,229,0.15); }
+
+        .qa-citation.locked {
+            background: rgba(148,163,184,0.1); color: var(--text-muted); cursor: not-allowed;
+        }
+
+        .qa-feedback { display: flex; gap: 4px; margin-top: 8px; }
+
+        .qa-fb-btn {
+            width: 24px; height: 24px; border: 1px solid var(--border);
+            border-radius: 4px; background: var(--surface); cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 12px;
+        }
+
+        .qa-fb-btn:hover { border-color: var(--primary); }
+
+        .qa-input-area {
+            padding: 12px 0; border-top: 1px solid var(--border); background: var(--surface-alt);
+        }
+
+        .qa-input-box {
+            display: flex; align-items: flex-end; gap: 8px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 6px 6px 6px 14px;
+        }
+
+        .qa-input-box:focus-within {
+            border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+        }
+
+        .qa-input-box textarea {
+            flex: 1; border: none; outline: none; font-size: 13px;
+            resize: none; max-height: 100px; line-height: 1.6; padding: 6px 0;
+            font-family: inherit;
+        }
+
+        .qa-send-btn {
+            width: 32px; height: 32px; border-radius: 6px;
+            background: var(--primary); color: white; border: none;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; flex-shrink: 0;
+        }
+
+        .qa-send-btn:hover { background: var(--primary-dark); }
+
+        .qa-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; text-align: center; }
+
+        /* ===== SuperAgent Panel ===== */
+        .agent-panel {
+            background: linear-gradient(135deg, rgba(79,70,229,0.04), rgba(6,182,212,0.04));
+            border: 1px solid rgba(79,70,229,0.2);
+            border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+        }
+
+        .agent-panel-header {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+        }
+
+        .agent-panel-header .agent-icon {
+            width: 28px; height: 28px; border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary), #06B6D4);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: white;
+        }
+
+        .agent-panel-header .agent-title { font-size: 13px; font-weight: 600; flex: 1; }
+
+        .agent-panel-header .agent-status {
+            font-size: 11px; padding: 2px 10px; border-radius: 10px;
+            background: rgba(79,70,229,0.1); color: var(--primary);
+        }
+
+        .agent-panel-header .agent-status.done {
+            background: rgba(16,185,129,0.1); color: var(--success);
+        }
+
+        .agent-steps { display: flex; flex-direction: column; gap: 4px; }
+
+        .agent-step {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 10px; border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .agent-step.current {
+            background: rgba(79,70,229,0.06);
+        }
+
+        .agent-step .step-icon {
+            width: 22px; height: 22px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; flex-shrink: 0;
+        }
+
+        .agent-step.done .step-icon {
+            background: var(--success); color: white;
+        }
+
+        .agent-step.current .step-icon {
+            background: var(--primary); color: white;
+            animation: pulse-dot 1.5s infinite;
+        }
+
+        .agent-step.pending .step-icon {
+            background: var(--surface-alt); color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .agent-step.skipped .step-icon {
+            background: rgba(148,163,184,0.15); color: var(--text-muted);
+        }
+
+        .agent-step .step-content { flex: 1; min-width: 0; }
+
+        .agent-step .step-name { font-size: 12px; font-weight: 500; }
+
+        .agent-step .step-tool {
+            font-size: 10px; color: var(--text-muted); margin-top: 1px;
+        }
+
+        .agent-step .step-result {
+            font-size: 11px; color: var(--success); margin-top: 2px;
+        }
+
+        .agent-controls {
+            display: flex; gap: 6px; margin-top: 10px; padding-top: 10px;
+            border-top: 1px solid rgba(79,70,229,0.15);
+        }
+
+        .agent-ctrl-btn {
+            padding: 4px 12px; border-radius: 4px; font-size: 11px;
+            cursor: pointer; border: 1px solid var(--border);
+            background: var(--surface); color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .agent-ctrl-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        .agent-result-box {
+            margin-top: 12px; padding: 14px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; font-size: 12px; line-height: 1.7;
+        }
+
+        .agent-result-box .result-header {
+            display: flex; align-items: center; gap: 6px;
+            margin-bottom: 8px; font-weight: 600; font-size: 13px;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(79,70,229,0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(79,70,229,0); }
+        }
+
+        /* ===== Knowledge Base Page ===== */
+        .page-kb { display: none; }
+        .page-kb.active { display: block; }
+
+        .kb-toolbar {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+        }
+
+        .kb-filter-group {
+            display: flex; gap: 3px; background: var(--surface);
+            border: 1px solid var(--border); border-radius: 8px; padding: 2px;
+        }
+
+        .kb-filter-btn {
+            padding: 5px 12px; border: none; border-radius: 6px;
+            font-size: 12px; cursor: pointer; background: transparent;
+            color: var(--text-secondary); transition: all 0.2s;
+        }
+
+        .kb-filter-btn.active { background: var(--primary); color: white; }
+        .kb-filter-btn:hover:not(.active) { background: var(--surface-hover); }
+
+        .kb-upload-btn {
+            margin-left: auto; padding: 7px 14px; background: var(--primary);
+            color: white; border: none; border-radius: 8px; font-size: 12px;
+            font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 5px;
+        }
+
+        .kb-upload-btn:hover { background: var(--primary-dark); }
+
+        .kb-table {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; overflow: hidden;
+        }
+
+        .kb-table table { width: 100%; border-collapse: collapse; }
+
+        .kb-table th {
+            text-align: left; padding: 10px 14px; font-size: 11px;
+            font-weight: 600; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            background: var(--surface-alt); border-bottom: 1px solid var(--border);
+        }
+
+        .kb-table td {
+            padding: 12px 14px; font-size: 12px;
+            border-bottom: 1px solid var(--border); vertical-align: middle;
+        }
+
+        .kb-table tr:last-child td { border-bottom: none; }
+        .kb-table tr:hover td { background: var(--surface-alt); }
+
+        .kb-doc-info { display: flex; align-items: center; gap: 8px; }
+
+        .kb-doc-icon {
+            width: 28px; height: 28px; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center; font-size: 13px;
+        }
+
+        .kb-doc-name { font-weight: 500; font-size: 12px; }
+        .kb-doc-meta { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+        .kb-status {
+            display: inline-flex; align-items: center; gap: 3px;
+            padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500;
+        }
+
+        .kb-status.active { background: rgba(16,185,129,0.1); color: var(--success); }
+        .kb-status.expired { background: rgba(245,158,11,0.1); color: var(--warning); }
+
+        .kb-level {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 11px; font-weight: 500;
+        }
+
+        .kb-level.public { color: var(--success); }
+        .kb-level.internal { color: #3B82F6; }
+        .kb-level.confidential { color: var(--danger); }
+
+        .kb-tag {
+            display: inline-block; padding: 1px 6px; background: var(--surface-alt);
+            border-radius: 3px; font-size: 10px; color: var(--text-secondary); margin-right: 3px;
+        }
+
+        .kb-action-btn {
+            width: 24px; height: 24px; border: 1px solid var(--border);
+            border-radius: 4px; background: var(--surface); cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; font-size: 12px;
+        }
+
+        .kb-action-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* ===== Permissions Page ===== */
+        .page-permissions { display: none; }
+        .page-permissions.active { display: block; }
+
+        .perm-tabs {
+            display: flex; gap: 3px; background: var(--surface);
+            border: 1px solid var(--border); border-radius: 8px;
+            padding: 3px; margin-bottom: 16px; width: fit-content;
+        }
+
+        .perm-tab {
+            padding: 7px 16px; border-radius: 6px; font-size: 12px;
+            cursor: pointer; color: var(--text-secondary); transition: all 0.2s; white-space: nowrap;
+        }
+
+        .perm-tab.active { background: var(--primary); color: white; font-weight: 500; }
+        .perm-tab:hover:not(.active) { background: var(--surface-hover); }
+
+        .perm-panel { display: none; }
+        .perm-panel.active { display: block; }
+
+        .perm-toolbar {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+        }
+
+        .perm-search {
+            padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px;
+            font-size: 12px; outline: none; flex: 1; max-width: 280px;
+        }
+
+        .perm-search:focus { border-color: var(--primary); }
+
+        .roles-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+        }
+
+        .role-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px; transition: all 0.2s;
+        }
+
+        .role-card:hover { border-color: var(--primary-light); box-shadow: 0 2px 8px rgba(79,70,229,0.08); }
+
+        .role-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+
+        .role-icon {
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+
+        .role-name { font-size: 13px; font-weight: 600; flex: 1; }
+
+        .role-count {
+            font-size: 11px; color: var(--text-muted);
+            background: var(--surface-alt); padding: 1px 8px; border-radius: 8px;
+        }
+
+        .role-perms { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+
+        .role-perm-tag {
+            font-size: 10px; padding: 2px 8px;
+            background: rgba(79,70,229,0.07); color: var(--primary); border-radius: 4px;
+        }
+
+        .role-members {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            padding-top: 8px; border-top: 1px solid var(--border);
+        }
+
+        .role-member { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+
+        .role-member-avatar {
+            width: 22px; height: 22px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 600; color: white;
+        }
+
+        .perm-matrix-table { width: 100%; border-collapse: collapse; }
+
+        .perm-matrix-table th {
+            text-align: center; padding: 10px 12px; font-size: 11px;
+            font-weight: 600; color: var(--text-secondary);
+            background: var(--surface-alt); border-bottom: 1px solid var(--border);
+        }
+
+        .perm-matrix-table th:first-child { text-align: left; }
+
+        .perm-matrix-table td {
+            padding: 10px 12px; text-align: center; font-size: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .perm-matrix-table td:first-child { text-align: left; }
+        .perm-matrix-table tr:hover td { background: var(--surface-alt); }
+
+        .perm-cell {
+            display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
+        }
+
+        .perm-cell.all { background: rgba(79,70,229,0.1); color: var(--primary); }
+        .perm-cell.rw { background: rgba(6,182,212,0.1); color: #06B6D4; }
+        .perm-cell.r { background: rgba(16,185,129,0.1); color: var(--success); }
+        .perm-cell.none { background: var(--surface-alt); color: var(--text-muted); }
+
+        .class-row {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;
+        }
+
+        .class-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px; text-align: center;
+        }
+
+        .class-card .class-dot {
+            width: 14px; height: 14px; border-radius: 50%; margin: 0 auto 8px;
+        }
+
+        .class-card.public .class-dot { background: var(--success); }
+        .class-card.internal .class-dot { background: #3B82F6; }
+        .class-card.confidential .class-dot { background: var(--danger); }
+
+        .class-card .class-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+        .class-card .class-desc { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+        .class-card .class-count { font-size: 22px; font-weight: 700; }
+
+        .audit-list {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; overflow: hidden;
+        }
+
+        .audit-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 12px 16px; transition: background 0.15s;
+        }
+
+        .audit-item:hover { background: var(--surface-alt); }
+        .audit-item + .audit-item { border-top: 1px solid var(--border); }
+
+        .audit-dot {
+            width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0;
+        }
+
+        .audit-dot.allowed { background: var(--success); }
+        .audit-dot.denied { background: var(--danger); }
+        .audit-dot.warning { background: var(--warning); }
+
+        .audit-text { font-size: 12px; line-height: 1.5; }
+        .audit-text strong { font-weight: 600; }
+
+        .audit-action {
+            display: inline-block; padding: 0 6px; border-radius: 3px;
+            font-size: 10px; font-weight: 500; margin: 0 2px;
+        }
+
+        .audit-action.view { background: rgba(16,185,129,0.1); color: var(--success); }
+        .audit-action.edit { background: rgba(6,182,212,0.1); color: #06B6D4; }
+        .audit-action.perm { background: rgba(245,158,11,0.1); color: var(--warning); }
+        .audit-action.sys { background: var(--surface-alt); color: var(--text-secondary); }
+
+        .audit-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+        /* ===== Modal ===== */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.4); z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--surface); border-radius: 14px;
+            width: 520px; max-width: 90vw;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .modal-header h3 { font-size: 15px; font-weight: 600; }
+
+        .modal-close {
+            width: 24px; height: 24px; border: none; background: transparent;
+            cursor: pointer; font-size: 16px; color: var(--text-muted); border-radius: 4px;
+        }
+
+        .modal-close:hover { background: var(--surface-hover); }
+
+        .modal-body { padding: 20px; }
+
+        .upload-zone {
+            border: 2px dashed var(--border); border-radius: 10px;
+            padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s;
+        }
+
+        .upload-zone:hover { border-color: var(--primary); }
+
+        .upload-zone .upload-icon { font-size: 32px; margin-bottom: 8px; }
+        .upload-zone .upload-text { font-size: 13px; color: var(--text-secondary); }
+        .upload-zone .upload-hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+        .modal-field { margin-top: 14px; }
+
+        .modal-field label {
+            font-size: 12px; font-weight: 500; display: block; margin-bottom: 4px;
+        }
+
+        .modal-field input, .modal-field select {
+            width: 100%; padding: 7px 12px; border: 1px solid var(--border);
+            border-radius: 6px; font-size: 12px; outline: none;
+        }
+
+        .modal-field input:focus, .modal-field select:focus { border-color: var(--primary); }
+
+        .modal-footer {
+            padding: 14px 20px; border-top: 1px solid var(--border);
+            display: flex; justify-content: flex-end; gap: 6px;
+        }
+
+        .btn {
+            padding: 7px 16px; border-radius: 6px; font-size: 12px;
+            font-weight: 500; cursor: pointer; border: none; transition: all 0.2s;
+        }
+
+        .btn-secondary { background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--surface-hover); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        /* ===== Animations ===== */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-in { animation: fadeIn 0.25s ease-out; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+        }
+
+        .typing-dot {
+            display: inline-block; width: 5px; height: 5px;
+            background: var(--text-muted); border-radius: 50%; margin: 0 1px;
+            animation: pulse 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 1100px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .dash-row { grid-template-columns: 1fr; }
+            .roles-grid { grid-template-columns: repeat(2, 1fr); }
+            .class-row { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 56px; }
+            .sidebar h1, .sidebar > .sidebar-brand span, .nav-section-title, .nav-item span:not(.icon), .nav-item .badge, .user-info { display: none; }
+            .sidebar-brand { justify-content: center; padding: 14px; }
+            .sidebar-brand .brand-text { display: none; }
+            .nav-item { justify-content: center; padding: 8px; }
+            .roles-grid { grid-template-columns: 1fr; }
+            .class-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="logo">智</div>
+            <div class="brand-text">
+                <h1>智知 AgentHub</h1>
+                <span>企业知识管理</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">工作台</div>
+            <div class="nav-item active" data-page="dashboard">
+                <span class="icon">📊</span> 概览
+            </div>
+            <div class="nav-item" data-page="qa">
+                <span class="icon">💬</span> 智能问答
+                <span class="badge">Agent</span>
+            </div>
+            <div class="nav-item" data-page="kb">
+                <span class="icon">📚</span> 知识库
+            </div>
+            <div class="nav-section-title">管理</div>
+            <div class="nav-item" data-page="permissions">
+                <span class="icon">🔐</span> 权限管理
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar">张</div>
+                <div class="user-info">
+                    <div class="name">张明</div>
+                    <div class="role">管理员</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+        <header class="header">
+            <div class="header-search">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="搜索知识、文档、问题... (按 Enter 提问)">
+            </div>
+            <div class="header-actions">
+                <button class="header-btn" title="通知">🔔<span class="dot"></span></button>
+                <button class="header-btn" title="帮助">❓</button>
+            </div>
+        </header>
+
+        <!-- Dashboard -->
+        <div class="page-dashboard active" data-page-content="dashboard">
+            <div class="page-content">
+                <h1 class="page-title">👋 欢迎回来，张明</h1>
+                <p class="page-subtitle">企业知识管理概览</p>
+
+                <div class="stats-row">
+                    <div class="stat-card animate-in">
+                        <div class="stat-label">知识文档</div>
+                        <div class="stat-value">2,847</div>
+                        <div class="stat-trend up">↑ 12 较上周</div>
+                    </div>
+                    <div class="stat-card animate-in" style="animation-delay:0.03s">
+                        <div class="stat-label">本周问答</div>
+                        <div class="stat-value">1,391</div>
+                        <div class="stat-trend up">↑ 18%</div>
+                    </div>
+                    <div class="stat-card animate-in" style="animation-delay:0.06s">
+                        <div class="stat-label">Agent 任务</div>
+                        <div class="stat-value">247</div>
+                        <div class="stat-trend up">↑ 35%</div>
+                    </div>
+                    <div class="stat-card animate-in" style="animation-delay:0.09s">
+                        <div class="stat-label">活跃用户</div>
+                        <div class="stat-value">186</div>
+                        <div class="stat-trend neutral">共 320 人</div>
+                    </div>
+                </div>
+
+                <div class="dash-row">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">📈 问答趋势</h3>
+                            <span class="card-action">详情 →</span>
+                        </div>
+                        <div class="chart-area">
+                            <div class="chart-bar" style="height:40%"><span class="bar-value">180</span><span class="bar-label">一</span></div>
+                            <div class="chart-bar" style="height:60%"><span class="bar-value">280</span><span class="bar-label">二</span></div>
+                            <div class="chart-bar" style="height:50%"><span class="bar-value">220</span><span class="bar-label">三</span></div>
+                            <div class="chart-bar" style="height:75%"><span class="bar-value">350</span><span class="bar-label">四</span></div>
+                            <div class="chart-bar" style="height:80%"><span class="bar-value">361</span><span class="bar-label">五</span></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">⚡ 快捷操作</h3>
+                        </div>
+                        <div class="quick-actions">
+                            <button class="quick-action-btn" onclick="showModal()"><span>📤</span> 上传文档</button>
+                            <button class="quick-action-btn" onclick="switchPage('qa')"><span>🤖</span> 召唤 SuperAgent</button>
+                            <button class="quick-action-btn" onclick="switchPage('permissions')"><span>🔐</span> 权限设置</button>
+                            <button class="quick-action-btn"><span>👥</span> 邀请成员</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dash-row" style="margin-top:12px;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">🕐 最近活动</h3>
+                        </div>
+                        <div class="activity-list">
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background:rgba(79,70,229,0.1);color:var(--primary);">🤖</div>
+                                <div>
+                                    <div class="activity-text"><strong>SuperAgent</strong> 完成了竞品分析报告</div>
+                                    <div class="activity-time">5 分钟前</div>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background:rgba(16,185,129,0.1);color:var(--success);">📤</div>
+                                <div>
+                                    <div class="activity-text">李华 上传了 <strong>《Q4 产品发布计划》</strong></div>
+                                    <div class="activity-time">15 分钟前</div>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background:rgba(79,70,229,0.1);color:var(--primary);">💬</div>
+                                <div>
+                                    <div class="activity-text">完成本周第 <strong>1,391</strong> 次问答</div>
+                                    <div class="activity-time">1 小时前</div>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background:rgba(245,158,11,0.1);color:var(--warning);">⚠️</div>
+                                <div>
+                                    <div class="activity-text">检测到 <strong>8 篇</strong> 文档可能过期</div>
+                                    <div class="activity-time">2 小时前</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">🔥 热门搜索</h3>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                            <span class="kb-tag" style="font-size:12px;padding:4px 10px;">报销流程</span>
+                            <span class="kb-tag" style="font-size:12px;padding:4px 10px;">API 文档</span>
+                            <span class="kb-tag" style="font-size:12px;padding:4px 10px;">入职指南</span>
+                            <span class="kb-tag" style="font-size:12px;padding:4px 10px;">VPN 配置</span>
+                            <span class="kb-tag" style="font-size:12px;padding:4px 10px;">发布流程</span>
+                        </div>
+                        <div style="margin-top:16px;">
+                            <h4 style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">密级分布</h4>
+                            <div style="display:flex;flex-direction:column;gap:6px;">
+                                <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+                                    <span style="width:50px;">🟢 公开</span>
+                                    <div style="flex:1;height:6px;background:var(--border);border-radius:3px;"><div style="width:35%;height:100%;background:var(--success);border-radius:3px;"></div></div>
+                                    <span style="color:var(--text-muted);">35%</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+                                    <span style="width:50px;">🔵 内部</span>
+                                    <div style="flex:1;height:6px;background:var(--border);border-radius:3px;"><div style="width:55%;height:100%;background:#3B82F6;border-radius:3px;"></div></div>
+                                    <span style="color:var(--text-muted);">55%</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+                                    <span style="width:50px;">🔴 机密</span>
+                                    <div style="flex:1;height:6px;background:var(--border);border-radius:3px;"><div style="width:10%;height:100%;background:var(--danger);border-radius:3px;"></div></div>
+                                    <span style="color:var(--text-muted);">10%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q&A + SuperAgent Page -->
+        <div class="page-qa" data-page-content="qa">
+            <div class="page-content" style="padding:0;">
+                <div class="qa-container">
+                    <div class="qa-header">
+                        <h2>💬 智能问答 & SuperAgent</h2>
+                        <p>简单问题直接答，复杂任务交给 Agent 自主规划执行</p>
+                    </div>
+
+                    <!-- Mode Toggle -->
+                    <div class="qa-mode-toggle">
+                        <div class="qa-mode-btn active" data-mode="qa" onclick="setQAMode('qa')">⚡ 快捷问答</div>
+                        <div class="qa-mode-btn" data-mode="agent" onclick="setQAMode('agent')">🤖 SuperAgent</div>
+                    </div>
+
+                    <!-- Agent Suggestions -->
+                    <div class="qa-suggestions" id="agentSuggestions" style="display:none;">
+                        <span class="qa-chip agent-chip" onclick="startAgentTask('分析竞品 X 的产品功能，输出对比报告')">📊 竞品分析报告</span>
+                        <span class="qa-chip agent-chip" onclick="startAgentTask('帮我写一个项目启动方案')">📋 项目启动方案</span>
+                        <span class="qa-chip agent-chip" onclick="startAgentTask('整理本周会议纪要的行动项')">📝 会议纪要整理</span>
+                    </div>
+
+                    <!-- QA Suggestions -->
+                    <div class="qa-suggestions" id="qaSuggestions">
+                        <span class="qa-chip" onclick="askQuestion('报销流程是什么？')">报销流程是什么？</span>
+                        <span class="qa-chip" onclick="askQuestion('如何申请 VPN？')">如何申请 VPN？</span>
+                        <span class="qa-chip" onclick="askQuestion('入职需要准备什么？')">入职需要准备什么？</span>
+                    </div>
+
+                    <div class="qa-messages" id="qaMessages">
+                        <div class="qa-msg assistant animate-in">
+                            <div class="qa-msg-avatar">智</div>
+                            <div class="qa-bubble">
+                                您好！我是智知助手 👋<br><br>
+                                <strong>⚡ 快捷问答</strong>：直接提问，秒级回答<br>
+                                <strong>🤖 SuperAgent</strong>：复杂任务自主规划执行，5 分钟出活<br><br>
+                                切换到 <strong>SuperAgent</strong> 模式，试试让我帮你做一份竞品分析报告？
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="qa-input-area">
+                        <div class="qa-input-box">
+                            <textarea id="qaInput" placeholder="输入问题或任务... (Shift+Enter 换行)" rows="1" onkeydown="handleQAKey(event)"></textarea>
+                            <button class="qa-send-btn" onclick="sendQA()">➤</button>
+                        </div>
+                        <div class="qa-hint" id="qaHint">AI 生成，仅供参考 · 点击来源可查看原文</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Knowledge Base Page -->
+        <div class="page-kb" data-page-content="kb">
+            <div class="page-content">
+                <h1 class="page-title">📚 知识库</h1>
+                <p class="page-subtitle">管理企业知识文档</p>
+
+                <div class="kb-toolbar">
+                    <div class="kb-filter-group">
+                        <button class="kb-filter-btn active">全部</button>
+                        <button class="kb-filter-btn">技术</button>
+                        <button class="kb-filter-btn">产品</button>
+                        <button class="kb-filter-btn">运维</button>
+                        <button class="kb-filter-btn">制度</button>
+                    </div>
+                    <button class="kb-upload-btn" onclick="showModal()">📤 上传文档</button>
+                </div>
+
+                <div class="kb-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>文档</th>
+                                <th>密级</th>
+                                <th>标签</th>
+                                <th>状态</th>
+                                <th>更新时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="kb-doc-info">
+                                        <div class="kb-doc-icon" style="background:rgba(239,68,68,0.1);color:var(--danger);">📕</div>
+                                        <div><div class="kb-doc-name">API 开发规范 v3.2</div><div class="kb-doc-meta">PDF · 4.2MB · 王强</div></div>
+                                    </div>
+                                </td>
+                                <td><span class="kb-level internal">🔵 内部</span></td>
+                                <td><span class="kb-tag">API</span><span class="kb-tag">规范</span></td>
+                                <td><span class="kb-status active">● 有效</span></td>
+                                <td>10-25</td>
+                                <td><button class="kb-action-btn">👁</button><button class="kb-action-btn">✏️</button></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="kb-doc-info">
+                                        <div class="kb-doc-icon" style="background:rgba(59,130,246,0.1);color:#3B82F6;">📘</div>
+                                        <div><div class="kb-doc-name">Q4 产品发布计划</div><div class="kb-doc-meta">DOCX · 2.1MB · 李华</div></div>
+                                    </div>
+                                </td>
+                                <td><span class="kb-level confidential">🔴 机密</span></td>
+                                <td><span class="kb-tag">发布</span><span class="kb-tag">计划</span></td>
+                                <td><span class="kb-status active">● 有效</span></td>
+                                <td>10-24</td>
+                                <td><button class="kb-action-btn">👁</button><button class="kb-action-btn">✏️</button></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="kb-doc-info">
+                                        <div class="kb-doc-icon" style="background:rgba(16,185,129,0.1);color:var(--success);">📗</div>
+                                        <div><div class="kb-doc-name">服务器故障处理 SOP</div><div class="kb-doc-meta">MD · 156KB · 运维组</div></div>
+                                    </div>
+                                </td>
+                                <td><span class="kb-level internal">🔵 内部</span></td>
+                                <td><span class="kb-tag">故障</span><span class="kb-tag">SOP</span></td>
+                                <td><span class="kb-status expired">● 待更新</span></td>
+                                <td>06-15</td>
+                                <td><button class="kb-action-btn">👁</button><button class="kb-action-btn">✏️</button></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="kb-doc-info">
+                                        <div class="kb-doc-icon" style="background:rgba(168,85,247,0.1);color:#A855F7;">📙</div>
+                                        <div><div class="kb-doc-name">新员工入职指南</div><div class="kb-doc-meta">PDF · 8.5MB · HR</div></div>
+                                    </div>
+                                </td>
+                                <td><span class="kb-level public">🟢 公开</span></td>
+                                <td><span class="kb-tag">入职</span><span class="kb-tag">HR</span></td>
+                                <td><span class="kb-status active">● 有效</span></td>
+                                <td>09-01</td>
+                                <td><button class="kb-action-btn">👁</button><button class="kb-action-btn">✏️</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Permissions Page -->
+        <div class="page-permissions" data-page-content="permissions">
+            <div class="page-content">
+                <h1 class="page-title">🔐 权限管理</h1>
+                <p class="page-subtitle">角色、密级与审计日志</p>
+
+                <div class="perm-tabs">
+                    <div class="perm-tab active" data-perm-tab="roles">👥 角色</div>
+                    <div class="perm-tab" data-perm-tab="matrix">🔲 权限矩阵</div>
+                    <div class="perm-tab" data-perm-tab="levels">🏷️ 密级</div>
+                    <div class="perm-tab" data-perm-tab="audit">📋 审计日志</div>
+                </div>
+
+                <div class="perm-panel active" data-perm-panel="roles">
+                    <div class="perm-toolbar">
+                        <input type="text" class="perm-search" placeholder="搜索角色或成员...">
+                        <button class="btn btn-primary" style="font-size:12px;padding:6px 14px;">+ 新建角色</button>
+                    </div>
+                    <div class="roles-grid">
+                        <div class="role-card animate-in">
+                            <div class="role-header">
+                                <div class="role-icon" style="background:rgba(239,68,68,0.1);color:var(--danger);">👑</div>
+                                <div class="role-name">管理员</div>
+                                <span class="role-count">2人</span>
+                            </div>
+                            <div class="role-perms">
+                                <span class="role-perm-tag">全部权限</span><span class="role-perm-tag">系统配置</span><span class="role-perm-tag">SuperAgent</span>
+                            </div>
+                            <div class="role-members">
+                                <div class="role-member">
+                                    <div class="role-member-avatar" style="background:var(--primary);">张</div>张明
+                                </div>
+                                <div class="role-member">
+                                    <div class="role-member-avatar" style="background:var(--success);">王</div>王芳
+                                </div>
+                            </div>
+                        </div>
+                        <div class="role-card animate-in" style="animation-delay:0.03s">
+                            <div class="role-header">
+                                <div class="role-icon" style="background:rgba(79,70,229,0.1);color:var(--primary);">✍️</div>
+                                <div class="role-name">编辑者</div>
+                                <span class="role-count">8人</span>
+                            </div>
+                            <div class="role-perms">
+                                <span class="role-perm-tag">上传/编辑</span><span class="role-perm-tag">SuperAgent</span>
+                            </div>
+                        </div>
+                        <div class="role-card animate-in" style="animation-delay:0.06s">
+                            <div class="role-header">
+                                <div class="role-icon" style="background:rgba(16,185,129,0.1);color:var(--success);">👁️</div>
+                                <div class="role-name">查看者</div>
+                                <span class="role-count">298人</span>
+                            </div>
+                            <div class="role-perms">
+                                <span class="role-perm-tag">检索/问答</span><span class="role-perm-tag">查看授权</span>
+                            </div>
+                        </div>
+                        <div class="role-card animate-in" style="animation-delay:0.09s">
+                            <div class="role-header">
+                                <div class="role-icon" style="background:rgba(245,158,11,0.1);color:var(--warning);">🔗</div>
+                                <div class="role-name">访客</div>
+                                <span class="role-count">12人</span>
+                            </div>
+                            <div class="role-perms">
+                                <span class="role-perm-tag">仅授权文档</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="perm-panel" data-perm-panel="matrix">
+                    <div class="card" style="overflow:auto;">
+                        <div class="card-header">
+                            <h3 class="card-title">🔲 权限矩阵</h3>
+                            <span class="card-action">导出 →</span>
+                        </div>
+                        <table class="perm-matrix-table">
+                            <thead>
+                                <tr><th>角色 / 密级</th><th>🟢 公开</th><th>🔵 内部</th><th>🔴 机密</th><th>SuperAgent</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><strong>管理员</strong></td><td><span class="perm-cell all">读写删</span></td><td><span class="perm-cell all">读写删</span></td><td><span class="perm-cell all">读写删</span></td><td><span class="perm-cell all">使用</span></td></tr>
+                                <tr><td><strong>编辑者</strong></td><td><span class="perm-cell rw">读写</span></td><td><span class="perm-cell rw">读写</span></td><td><span class="perm-cell r">只读</span></td><td><span class="perm-cell rw">使用</span></td></tr>
+                                <tr><td><strong>查看者</strong></td><td><span class="perm-cell r">只读</span></td><td><span class="perm-cell r">只读</span></td><td><span class="perm-cell none">—</span></td><td><span class="perm-cell none">—</span></td></tr>
+                                <tr><td><strong>访客</strong></td><td><span class="perm-cell r">只读</span></td><td><span class="perm-cell none">—</span></td><td><span class="perm-cell none">—</span></td><td><span class="perm-cell none">—</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="perm-panel" data-perm-panel="levels">
+                    <div class="class-row">
+                        <div class="class-card public">
+                            <div class="class-dot"></div>
+                            <div class="class-name">🟢 公开</div>
+                            <div class="class-desc">所有人可见</div>
+                            <div class="class-count">997</div>
+                        </div>
+                        <div class="class-card internal">
+                            <div class="class-dot"></div>
+                            <div class="class-name">🔵 内部</div>
+                            <div class="class-desc">仅正式员工</div>
+                            <div class="class-count">1,567</div>
+                        </div>
+                        <div class="class-card confidential">
+                            <div class="class-dot"></div>
+                            <div class="class-name">🔴 机密</div>
+                            <div class="class-desc">仅授权人员</div>
+                            <div class="class-count">283</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="perm-panel" data-perm-panel="audit">
+                    <div class="perm-toolbar">
+                        <input type="text" class="perm-search" placeholder="搜索操作记录...">
+                        <select class="perm-search" style="max-width:130px;">
+                            <option>全部操作</option><option>查看</option><option>编辑</option><option>Agent</option>
+                        </select>
+                        <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">最近 7 天 · 5,847 条</span>
+                    </div>
+                    <div class="audit-list">
+                        <div class="audit-item">
+                            <div class="audit-dot allowed"></div>
+                            <div>
+                                <div class="audit-text"><strong>张明</strong> <span class="audit-action sys">Agent</span> 完成竞品分析报告</div>
+                                <div class="audit-meta">研发部 · 管理员 · 10:35 · 5 步 · 2 篇文档引用</div>
+                            </div>
+                        </div>
+                        <div class="audit-item">
+                            <div class="audit-dot allowed"></div>
+                            <div>
+                                <div class="audit-text"><strong>李华</strong> <span class="audit-action edit">编辑</span> 《Q4 产品发布计划》</div>
+                                <div class="audit-meta">产品部 · 编辑者 · 10:25 · IP: 10.0.2.50 · 允许</div>
+                            </div>
+                        </div>
+                        <div class="audit-item">
+                            <div class="audit-dot denied"></div>
+                            <div>
+                                <div class="audit-text"><strong>王小明</strong> <span class="audit-action view">查看</span> 《Q4 产品发布计划》</div>
+                                <div class="audit-meta">市场部 · 查看者 · 10:20 · IP: 10.0.3.80 · <span style="color:var(--danger);">拒绝 (机密)</span></div>
+                            </div>
+                        </div>
+                        <div class="audit-item">
+                            <div class="audit-dot warning"></div>
+                            <div>
+                                <div class="audit-text"><strong>赵鹏</strong> <span class="audit-action view">查看</span> 《财务报表》× 15 次</div>
+                                <div class="audit-meta">财务部 · 管理员 · 09:45 · ⚠️ <span style="color:var(--warning);">异常访问</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal-overlay" id="uploadModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>📤 上传文档</h3>
+            <button class="modal-close" onclick="hideModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="upload-zone">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">点击或拖拽文件到此处</div>
+                <div class="upload-hint">支持 PDF、Word、PPT、Excel、Markdown，最大 100MB</div>
+            </div>
+            <div class="modal-field">
+                <label>分类</label>
+                <select><option>技术文档</option><option>产品资料</option><option>运维 SOP</option><option>管理制度</option></select>
+            </div>
+            <div class="modal-field">
+                <label>密级</label>
+                <select><option>🟢 公开</option><option>🔵 内部</option><option>🔴 机密</option></select>
+            </div>
+            <div class="modal-field">
+                <label>标签</label>
+                <input type="text" placeholder="例如: API, 规范">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="hideModal()">取消</button>
+            <button class="btn btn-primary" onclick="hideModal()">上传</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ===== Navigation =====
+    document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+        item.addEventListener('click', () => switchPage(item.dataset.page));
+    });
+
+    function switchPage(page) {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+        if (nav) nav.classList.add('active');
+        document.querySelectorAll('[data-page-content]').forEach(c => c.classList.remove('active'));
+        const content = document.querySelector(`[data-page-content="${page}"]`);
+        if (content) content.classList.add('active');
+    }
+
+    // ===== Modal =====
+    function showModal() { document.getElementById('uploadModal').classList.add('active'); }
+    function hideModal() { document.getElementById('uploadModal').classList.remove('active'); }
+
+    // ===== Permission Tabs =====
+    document.querySelectorAll('.perm-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.permTab;
+            document.querySelectorAll('.perm-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('.perm-panel').forEach(p => p.classList.remove('active'));
+            document.querySelector(`[data-perm-panel="${target}"]`)?.classList.add('active');
+        });
+    });
+
+    // ===== KB Filter =====
+    document.querySelectorAll('.kb-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.kb-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    // ===== QA Mode Toggle =====
+    let qaMode = 'qa';
+
+    function setQAMode(mode) {
+        qaMode = mode;
+        document.querySelectorAll('.qa-mode-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector(`.qa-mode-btn[data-mode="${mode}"]`).classList.add('active');
+
+        const agentSug = document.getElementById('agentSuggestions');
+        const qaSug = document.getElementById('qaSuggestions');
+        const hint = document.getElementById('qaHint');
+        const input = document.getElementById('qaInput');
+
+        if (mode === 'agent') {
+            agentSug.style.display = 'flex';
+            qaSug.style.display = 'none';
+            hint.innerHTML = '🤖 SuperAgent 模式：描述复杂目标，Agent 自主规划执行';
+            input.placeholder = '描述您的任务，例如：帮我分析竞品 X 的产品功能...';
+        } else {
+            agentSug.style.display = 'none';
+            qaSug.style.display = 'flex';
+            hint.innerHTML = 'AI 生成，仅供参考 · 点击来源可查看原文';
+            input.placeholder = '输入问题或任务... (Shift+Enter 换行)';
+        }
+    }
+
+    // ===== Simple Q&A =====
+    const qaData = {
+        '报销流程是什么？': {
+            answer: '根据《费用报销管理制度》，报销流程如下：\n\n**1. 填写报销单** → OA 系统填写，上传发票\n**2. 主管审批** → ≤5000元直属主管，>5000元需总监\n**3. 财务审核** → 3个工作日内完成\n**4. 打款** → 审核通过后5个工作日内',
+            citations: ['费用报销管理制度', 'OA操作手册']
+        },
+        '如何申请 VPN？': {
+            answer: 'VPN 申请流程：\n\n1. 登录 OA → IT 服务 → VPN 申请\n2. 填写申请理由和期限\n3. 直属主管审批（1个工作日）\n4. IT 开通权限 + 发送配置指南\n5. 下载客户端按指南配置',
+            citations: ['IT服务手册', 'VPN配置指南']
+        },
+        '入职需要准备什么？': {
+            answer: '新员工入职准备清单：\n\n**入职前**：身份证、学历证明、离职证明、银行卡\n**入职当天**：签署劳动合同、领取工卡、IT设备\n**入职一周内**：完成入职培训、开通各系统账号',
+            citations: ['新员工入职指南', 'HR管理制度']
+        }
+    };
+
+    function askQuestion(q) {
+        const box = document.getElementById('qaMessages');
+        box.innerHTML += `<div class="qa-msg user animate-in"><div class="qa-msg-avatar">张</div><div class="qa-bubble">${q}</div></div>`;
+        box.innerHTML += `<div class="qa-msg assistant animate-in" id="typingMsg"><div class="qa-msg-avatar">智</div><div class="qa-bubble"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div>`;
+        box.scrollTop = box.scrollHeight;
+
+        setTimeout(() => {
+            document.getElementById('typingMsg')?.remove();
+            const d = qaData[q] || { answer: `关于「${q}」，我从知识库中找到了相关信息。建议查看相关 SOP 文档获取详细步骤。`, citations: ['相关文档'] };
+            box.innerHTML += `<div class="qa-msg assistant animate-in">
+                <div class="qa-msg-avatar">智</div>
+                <div>
+                    <div class="qa-bubble" style="white-space:pre-line;">${d.answer}</div>
+                    <div class="qa-citations">${d.citations.map(c => `<span class="qa-citation">📄 ${c}</span>`).join('')}</div>
+                    <div class="qa-feedback"><button class="qa-fb-btn">👍</button><button class="qa-fb-btn">👎</button></div>
+                </div>
+            </div>`;
+            box.scrollTop = box.scrollHeight;
+        }, 1000);
+    }
+
+    // ===== SuperAgent =====
+    let agentStepTimers = [];
+
+    function startAgentTask(task) {
+        const box = document.getElementById('qaMessages');
+        box.innerHTML += `<div class="qa-msg user animate-in"><div class="qa-msg-avatar">张</div><div class="qa-bubble">${task}</div></div>`;
+
+        // Determine plan based on task content
+        const isCompetitor = task.includes('竞品') || task.includes('分析');
+        const isProject = task.includes('项目') || task.includes('方案');
+        const isMeeting = task.includes('会议') || task.includes('纪要');
+
+        let steps = [];
+        if (isCompetitor) {
+            steps = [
+                { name: '搜索竞品相关资料', tool: '🔍 知识搜索' },
+                { name: '搜索我方产品文档', tool: '🔍 知识搜索' },
+                { name: '提取功能对比点', tool: '📄 文档阅读' },
+                { name: '生成对比分析表', tool: '📊 数据分析' },
+                { name: '输出完整报告', tool: '✍️ 内容生成' }
+            ];
+        } else if (isProject) {
+            steps = [
+                { name: '搜索类似项目文档', tool: '🔍 知识搜索' },
+                { name: '提取项目模板结构', tool: '📄 文档阅读' },
+                { name: '分析项目需求要点', tool: '✍️ 内容生成' },
+                { name: '生成项目方案', tool: '✍️ 内容生成' }
+            ];
+        } else if (isMeeting) {
+            steps = [
+                { name: '搜索本周会议纪要', tool: '🔍 知识搜索' },
+                { name: '逐篇提取行动项', tool: '📄 文档阅读' },
+                { name: '去重合并整理', tool: '📊 数据分析' },
+                { name: '生成行动项跟踪表', tool: '✍️ 内容生成' }
+            ];
+        } else {
+            steps = [
+                { name: '理解任务需求', tool: '🧠 意图分析' },
+                { name: '搜索相关知识', tool: '🔍 知识搜索' },
+                { name: '整理分析结果', tool: '📊 数据分析' },
+                { name: '生成输出', tool: '✍️ 内容生成' }
+            ];
+        }
+
+        // Build agent panel
+        let stepsHtml = steps.map((s, i) => `
+            <div class="agent-step pending" id="step-${i}">
+                <div class="step-icon">${i + 1}</div>
+                <div class="step-content">
+                    <div class="step-name">${s.name}</div>
+                    <div class="step-tool">${s.tool}</div>
+                </div>
+            </div>
+        `).join('');
+
+        const agentPanelId = 'agent-panel-' + Date.now();
+        box.innerHTML += `<div class="qa-msg assistant animate-in">
+            <div class="qa-msg-avatar" style="background:linear-gradient(135deg,#4F46E5,#06B6D4);">🤖</div>
+            <div style="flex:1;max-width:85%;">
+                <div class="agent-panel" id="${agentPanelId}">
+                    <div class="agent-panel-header">
+                        <div class="agent-icon">🤖</div>
+                        <div class="agent-title">SuperAgent 执行中</div>
+                        <div class="agent-status" id="agentStatus-${agentPanelId}">运行中...</div>
+                    </div>
+                    <div class="agent-steps">${stepsHtml}</div>
+                    <div class="agent-controls">
+                        <button class="agent-ctrl-btn" onclick="pauseAgent('${agentPanelId}')">⏸ 暂停</button>
+                        <button class="agent-ctrl-btn" onclick="skipStep('${agentPanelId}')">⏭ 跳过当前步</button>
+                        <button class="agent-ctrl-btn" onclick="modifyPlan('${agentPanelId}')">✏️ 修改计划</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        box.scrollTop = box.scrollHeight;
+
+        // Execute steps with animation
+        let currentStep = 0;
+
+        function executeStep() {
+            if (currentStep >= steps.length) {
+                // Done
+                document.getElementById(`agentStatus-${agentPanelId}`).textContent = '✅ 完成';
+                document.getElementById(`agentStatus-${agentPanelId}`).classList.add('done');
+
+                // Show result
+                let resultContent = '';
+                if (isCompetitor) {
+                    resultContent = `<strong>📊 竞品分析报告</strong><br><br>
+                    <strong>一、竞品概况</strong><br>
+                    竞品 X 定位为中端市场，核心用户为中小企业...<br><br>
+                    <strong>二、功能对比</strong><br>
+                    • 功能 A：我方 ✅ 竞品 ✅ → 我方体验更优<br>
+                    • 功能 B：我方 ✅ 竞品 ❌ → 我方独有优势<br>
+                    • 功能 C：我方 ⚠️ 竞品 ✅ → 需补齐<br><br>
+                    <strong>三、建议</strong><br>
+                    1. 加速功能 C 的研发<br>
+                    2. 强化功能 B 的差异化营销<br>
+                    3. 关注竞品 X 近期动态<br><br>
+                    <em>报告引用了 5 篇知识库文档，共 3,200 字</em>`;
+                } else if (isProject) {
+                    resultContent = `<strong>📋 项目启动方案</strong><br><br>
+                    <strong>项目背景</strong>：基于公司战略目标...<br><br>
+                    <strong>项目目标</strong><br>
+                    • 核心目标 1：提升 XX 效率 30%<br>
+                    • 核心目标 2：降低 YY 成本 20%<br><br>
+                    <strong>里程碑计划</strong><br>
+                    • Week 1-2：需求调研与方案设计<br>
+                    • Week 3-6：核心功能开发<br>
+                    • Week 7-8：测试与上线<br><br>
+                    <strong>资源需求</strong><br>
+                    • 开发 3 人 · 产品 1 人 · 测试 1 人<br><br>
+                    <em>方案参考了 3 个历史项目文档</em>`;
+                } else {
+                    resultContent = `<strong>📝 任务完成</strong><br><br>
+                    已根据知识库内容完成分析，共检索到 5 篇相关文档，<br>
+                    提取关键信息 12 条，生成结构化输出。<br><br>
+                    <em>所有引用均来自您有权限查看的文档。</em>`;
+                }
+
+                const resultId = 'result-' + Date.now();
+                box.innerHTML += `<div class="qa-msg assistant animate-in">
+                    <div class="qa-msg-avatar" style="background:linear-gradient(135deg,#4F46E5,#06B6D4);">🤖</div>
+                    <div class="agent-result-box" id="${resultId}">
+                        <div class="result-header">✅ ${isCompetitor ? '竞品分析报告' : isProject ? '项目启动方案' : '分析结果'}</div>
+                        <div style="white-space:pre-line;font-size:12px;line-height:1.8;">${resultContent}</div>
+                        <div class="qa-citations" style="margin-top:10px;">
+                            <span class="qa-citation">📄 产品功能列表 v2.1</span>
+                            <span class="qa-citation">📄 竞品分析模板</span>
+                            <span class="qa-citation">📄 Q3 产品复盘</span>
+                            <span class="qa-citation locked">🔒 竞品X内部资料 (无权限)</span>
+                        </div>
+                        <div class="qa-feedback"><button class="qa-fb-btn">👍 有帮助</button><button class="qa-fb-btn">👎 需改进</button><button class="qa-fb-btn">📋 复制</button></div>
+                    </div>
+                </div>`;
+                box.scrollTop = box.scrollHeight;
+                return;
+            }
+
+            // Mark current step as running
+            const stepEl = document.getElementById(`step-${currentStep}`);
+            stepEl.className = 'agent-step current';
+            stepEl.querySelector('.step-icon').innerHTML = '🔄';
+
+            const delay = 800 + Math.random() * 600;
+            const timer = setTimeout(() => {
+                // Mark as done
+                stepEl.className = 'agent-step done';
+                stepEl.querySelector('.step-icon').innerHTML = '✓';
+                stepEl.querySelector('.step-content').innerHTML = `
+                    <div class="step-name">${steps[currentStep].name}</div>
+                    <div class="step-tool">${steps[currentStep].tool}</div>
+                    <div class="step-result">✓ 完成${currentStep === 0 ? ' · 找到 3 篇文档' : currentStep === 1 ? ' · 找到 5 篇文档' : ''}</div>
+                `;
+                currentStep++;
+                executeStep();
+            }, delay);
+
+            agentStepTimers.push(timer);
+        }
+
+        // Start execution
+        const startTimer = setTimeout(executeStep, 500);
+        agentStepTimers.push(startTimer);
+    }
+
+    function pauseAgent(id) {
+        agentStepTimers.forEach(t => clearTimeout(t));
+        agentStepTimers = [];
+        const status = document.getElementById(`agentStatus-${id}`);
+        if (status) { status.textContent = '⏸ 已暂停'; }
+    }
+
+    function skipStep(id) {
+        // Just trigger next step immediately
+    }
+
+    function modifyPlan(id) {
+        alert('计划修改功能：您可以在这里调整 Agent 的执行步骤（MVP 演示）');
+    }
+
+    // ===== Send =====
+    function sendQA() {
+        const input = document.getElementById('qaInput');
+        const q = input.value.trim();
+        if (!q) return;
+        input.value = '';
+
+        if (qaMode === 'agent') {
+            startAgentTask(q);
+        } else {
+            askQuestion(q);
+        }
+    }
+
+    function handleQAKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQA(); }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# 生产环境配置 — 覆盖 application.yml
+spring:
+  flyway:
+    clean-disabled: true
+
+logging:
+  level:
+    com.leon.agenthub: INFO
+    org.mybatis: WARN

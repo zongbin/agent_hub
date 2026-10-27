@@ -1,0 +1,30 @@
+# 智知 AgentHub — Git 忽略规则
+
+# ---- 后端 ----
+backend/target/
+backend/.idea/
+backend/*.iml
+backend/logs/
+
+# ---- 前端 ----
+frontend/node_modules/
+frontend/dist/
+frontend/.umi/
+frontend/.umi-production/
+frontend/.umi-test/
+frontend/coverage/
+frontend/*.log
+
+# ---- IDE ----
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# ---- 环境 / 密钥 ----
+.env
+.env.local
+*.pem
+*.key
+application-dev.yml
