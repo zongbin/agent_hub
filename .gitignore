@@ -5,6 +5,7 @@ backend/target/
 backend/.idea/
 backend/*.iml
 backend/logs/
+backend/data/
 
 # ---- 前端 ----
 frontend/node_modules/
@@ -21,6 +22,10 @@ frontend/*.log
 *.swp
 *.swo
 .DS_Store
+
+# ---- 本地数据 / 日志 ----
+data/
+frontend_vite.log
 
 # ---- 环境 / 密钥 ----
 .env
