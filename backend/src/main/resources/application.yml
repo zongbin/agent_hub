@@ -3,10 +3,43 @@ spring:
     name: agent-hub
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # Spring AI — 模型调用与向量存储
+  ai:
+    # DeepSeek 对话模型（OpenAI 兼容协议）
+    openai:
+      base-url: ${LLM_BASE_URL:https://api.deepseek.com}
+      api-key: ${LLM_API_KEY:}
+      chat:
+        options:
+          model: deepseek-chat
+          temperature: 0.7
+          max-tokens: 4096
+    # DashScope 灵积平台 Embedding
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:}
+      embedding:
+        options:
+          model: text-embedding-v3
+          dimensions: 1024
+      chat:
+        options:
+          model: qwen-plus
+          temperature: 0.7
+    # PgVector VectorStore（需要引入 spring-ai-pgvector-store 依赖后启用）
+    # vectorstore:
+    #   pgvector:
+    #     initialize-schema: true
+    #     dimensions: 1024
+    #     distance-type: COSINE_DISTANCE
   servlet:
     multipart:
       max-file-size: 100MB
       max-request-size: 100MB
+      # 显式指定 multipart 临时目录，避免 Tomcat 使用系统默认 temp 目录时权限不足
+      location: ${MULTIPART_TEMP_DIR:${java.io.tmpdir}}
+      # 文件写入磁盘的阈值（超过此大小才写入 temp，小文件驻留内存减少 IO）
+      file-size-threshold: 1MB
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/agent_hub?stringtype=unspecified
     username: ${DB_USER:agenthub}
@@ -18,28 +51,29 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASS:}
       database: ${REDIS_DB:0}
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-
-mybatis-plus:
-  mapper-locations: classpath:mapper/**/*.xml
-  type-aliases-package: com.leon.agenthub.**.model
-  configuration:
-    map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-  global-config:
-    db-config:
-      id-type: auto
-      logic-delete-field: deleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
+  # JPA / Hibernate — 自动管理数据库 schema
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+    show-sql: true
 
 server:
   port: 8080
   servlet:
     context-path: /api
+
+# Windows 控制台默认 GBK，与源码/日志 UTF-8 不一致会导致中文乱码
+logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
 
 # 自定义配置
 agenthub:
@@ -55,7 +89,15 @@ agenthub:
     base-url: ${LLM_BASE_URL:https://api.deepseek.com}
     api-key: ${LLM_API_KEY:}
     chat-model: deepseek-chat
-    embedding-model: bge-large-zh
+  embedding:
+    # 灵积平台（DashScope）通用文本向量接口
+    base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com}
+    api-key: ${DASHSCOPE_API_KEY:}
+    model: text-embedding-v3
+    dimensions: 1024
+    batch-size: 10
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
   super-agent:
     service-url: ${AGENT_SERVICE_URL:http://localhost:8000}
     connect-timeout-ms: 5000

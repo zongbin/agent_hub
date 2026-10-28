@@ -1,8 +1,9 @@
 package com.leon.agenthub;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
  * 智知 AgentHub 后端启动类。
@@ -11,7 +12,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * permission / audit / connector / common）。
  */
 @SpringBootApplication
-@MapperScan("com.leon.agenthub.**.mapper")
+@EnableJpaAuditing
+@EnableAsync
 public class AgentHubApplication {
 
     public static void main(String[] args) {

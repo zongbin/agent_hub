@@ -3,8 +3,8 @@ package com.leon.agenthub.auth.service;
 import com.leon.agenthub.auth.dto.LoginRequest;
 import com.leon.agenthub.auth.dto.LoginResponse;
 import com.leon.agenthub.auth.dto.UserInfo;
-import com.leon.agenthub.auth.mapper.UserMapper;
 import com.leon.agenthub.auth.model.User;
+import com.leon.agenthub.auth.repository.UserRepository;
 import com.leon.agenthub.auth.util.JwtUtil;
 import com.leon.agenthub.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final UserMapper userMapper;
+    private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
 
@@ -32,10 +32,8 @@ public class AuthService {
      */
     public LoginResponse login(LoginRequest request) {
         // 1. 查询用户
-        User user = userMapper.selectByUsername(request.getUsername());
-        if (user == null) {
-            throw new BusinessException(401, "用户名或密码错误");
-        }
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new BusinessException(401, "用户名或密码错误"));
 
         // 2. 校验账号状态
         if (user.getStatus() == null || user.getStatus() != 1) {
@@ -73,10 +71,8 @@ public class AuthService {
      * @return 用户信息
      */
     public UserInfo getCurrentUser(Long userId) {
-        User user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(404, "用户不存在");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
 
         return UserInfo.builder()
                 .id(user.getId())
@@ -95,10 +91,9 @@ public class AuthService {
      * @return 更新后的用户信息
      */
     public UserInfo updateProfile(Long userId, com.leon.agenthub.auth.dto.UpdateProfileRequest request) {
-        User user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(404, "用户不存在");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
+
         if (request.getRealName() != null) {
             user.setRealName(request.getRealName());
         }
@@ -108,7 +103,7 @@ public class AuthService {
         if (request.getDepartment() != null) {
             user.setDepartment(request.getDepartment());
         }
-        userMapper.updateById(user);
+        userRepository.save(user);
 
         log.info("User {} profile updated", user.getUsername());
         return UserInfo.builder()
@@ -127,15 +122,14 @@ public class AuthService {
      * @param request 原密码 + 新密码
      */
     public void changePassword(Long userId, com.leon.agenthub.auth.dto.ChangePasswordRequest request) {
-        User user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(404, "用户不存在");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
+
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
             throw new BusinessException(400, "原密码错误");
         }
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userMapper.updateById(user);
+        userRepository.save(user);
         log.info("User {} password changed", user.getUsername());
     }
 

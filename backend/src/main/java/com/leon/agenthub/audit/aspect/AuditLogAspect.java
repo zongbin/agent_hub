@@ -3,8 +3,8 @@ package com.leon.agenthub.audit.aspect;
 import com.leon.agenthub.audit.annotation.AuditLog;
 import com.leon.agenthub.auth.security.SecurityContextUtil;
 import com.leon.agenthub.common.util.IpUtils;
-import com.leon.agenthub.permission.mapper.AuditLogMapper;
 import com.leon.agenthub.permission.model.AuditLogEntity;
+import com.leon.agenthub.permission.repository.AuditLogRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +31,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuditLogAspect {
 
-    private final AuditLogMapper auditLogMapper;
+    private final AuditLogRepository auditLogRepository;
     private final SecurityContextUtil securityContextUtil;
 
     /**
@@ -87,7 +87,7 @@ public class AuditLogAspect {
             }
             auditLog.setDetail(detail);
 
-            auditLogMapper.insert(auditLog);
+            auditLogRepository.save(auditLog);
             log.debug("Audit log saved: action={}, resource={}, success={}", action, resource, success);
         } catch (Exception e) {
             log.error("Failed to save audit log: {}", e.getMessage(), e);

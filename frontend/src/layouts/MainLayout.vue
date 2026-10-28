@@ -21,6 +21,19 @@ const authStore = useAuthStore()
 /** 当前用户是否为管理员 */
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 
+/** 角色中文映射 */
+const roleLabelMap: Record<string, string> = {
+  ADMIN: '管理员',
+  EDITOR: '编辑者',
+  VIEWER: '查看者',
+  GUEST: '访客'
+}
+
+function getRoleLabel(role: string | undefined) {
+  if (!role) return ''
+  return roleLabelMap[role] || role
+}
+
 /** 个人设置抽屉 */
 const profileDrawerVisible = ref(false)
 
@@ -34,7 +47,7 @@ const menuItems = [
   { path: '/dashboard', title: '工作台', icon: HomeFilled },
   { path: '/knowledge', title: '知识库', icon: Reading },
   { path: '/qa', title: '智能问答', icon: ChatLineRound },
-  { path: '/agent', title: 'SuperAgent', icon: Cpu },
+  { path: '/agent', title: '超级智能体', icon: Cpu },
   { path: '/permission', title: '权限管理', icon: UserFilled, adminOnly: true }
 ]
 
@@ -99,7 +112,7 @@ async function handleLogout() {
           </el-avatar>
           <div class="user-info">
             <div class="user-name">{{ authStore.user?.realName || authStore.user?.username }}</div>
-            <div class="user-role">{{ authStore.user?.role }}</div>
+            <div class="user-role">{{ getRoleLabel(authStore.user?.role) }}</div>
           </div>
           <el-icon class="logout-icon" @click="handleLogout" title="退出登录">
             <SwitchButton />

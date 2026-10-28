@@ -52,7 +52,7 @@ const routes: RouteRecordRaw[] = [
         path: 'agent',
         name: 'Agent',
         component: () => import('@/views/QAM/index.vue'),
-        meta: { title: 'SuperAgent' }
+        meta: { title: '超级智能体' }
       },
       {
         path: 'permission',

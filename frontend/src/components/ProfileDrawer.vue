@@ -53,6 +53,19 @@ watch(visible, (val) => {
 function handleClose() {
   visible.value = false
 }
+
+/** 角色中文映射 */
+const roleLabelMap: Record<string, string> = {
+  ADMIN: '管理员',
+  EDITOR: '编辑者',
+  VIEWER: '查看者',
+  GUEST: '访客'
+}
+
+function getRoleLabel(role: string | undefined) {
+  if (!role) return ''
+  return roleLabelMap[role] || role
+}
 </script>
 
 <template>
@@ -74,7 +87,7 @@ function handleClose() {
           <div class="summary-info">
             <div class="summary-name">{{ authStore.user?.realName || authStore.user?.username }}</div>
             <div class="summary-meta">
-              <el-tag type="info" size="small">{{ authStore.user?.role }}</el-tag>
+              <el-tag type="info" size="small">{{ getRoleLabel(authStore.user?.role) }}</el-tag>
               <span v-if="authStore.user?.department" class="summary-dept">
                 {{ authStore.user.department }}
               </span>
@@ -104,7 +117,7 @@ function handleClose() {
               <el-input :model-value="authStore.user?.username" disabled />
             </el-form-item>
             <el-form-item label="角色">
-              <el-tag type="info" size="small">{{ authStore.user?.role }}</el-tag>
+              <el-tag type="info" size="small">{{ getRoleLabel(authStore.user?.role) }}</el-tag>
             </el-form-item>
             <el-form-item label="姓名">
               <el-input v-model="profileForm.realName" placeholder="请输入真实姓名" />
@@ -263,5 +276,9 @@ function handleClose() {
 .drawer-form {
   padding-top: 20px;
   max-width: 340px;
+}
+
+.drawer-form :deep(.el-form-item__label) {
+  white-space: nowrap;
 }
 </style>

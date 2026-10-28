@@ -1,21 +1,22 @@
 package com.leon.agenthub.permission.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.leon.agenthub.audit.annotation.AuditLog;
-import com.leon.agenthub.auth.mapper.UserMapper;
 import com.leon.agenthub.auth.model.User;
+import com.leon.agenthub.auth.repository.UserRepository;
+import com.leon.agenthub.auth.security.SecurityContextUtil;
 import com.leon.agenthub.common.exception.BusinessException;
 import com.leon.agenthub.common.response.R;
 import com.leon.agenthub.permission.dto.*;
-import com.leon.agenthub.permission.mapper.AuditLogMapper;
-import com.leon.agenthub.permission.model.AuditLogEntity;
-import com.leon.agenthub.permission.service.DocumentPermissionService;
 import com.leon.agenthub.permission.enums.UserRole;
-import com.leon.agenthub.auth.security.SecurityContextUtil;
+import com.leon.agenthub.permission.model.AuditLogEntity;
+import com.leon.agenthub.permission.repository.AuditLogRepository;
+import com.leon.agenthub.permission.service.DocumentPermissionService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,9 +34,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PermissionController {
 
-    private final UserMapper userMapper;
+    private final UserRepository userRepository;
     private final DocumentPermissionService documentPermissionService;
-    private final AuditLogMapper auditLogMapper;
+    private final AuditLogRepository auditLogRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final SecurityContextUtil securityContextUtil;
 
@@ -45,8 +46,8 @@ public class PermissionController {
     @GetMapping("/users")
     public R<List<User>> listUsers() {
         checkAdmin();
-        List<User> users = userMapper.selectList(
-                new LambdaQueryWrapper<User>().orderByDesc(User::getCreatedAt)
+        List<User> users = userRepository.findAll(
+                Sort.by(Sort.Direction.DESC, "createdAt")
         );
         // 移除密码字段
         users.forEach(u -> u.setPassword(null));
@@ -60,7 +61,7 @@ public class PermissionController {
     @AuditLog(action = "CREATE_USER", resource = "USER")
     public R<User> createUser(HttpServletRequest httpRequest, @RequestBody CreateUserRequest request) {
         // 检查用户名是否已存在
-        User existing = userMapper.selectByUsername(request.getUsername());
+        User existing = userRepository.findByUsername(request.getUsername()).orElse(null);
         if (existing != null) {
             throw new BusinessException(400, "用户名已存在");
         }
@@ -72,7 +73,7 @@ public class PermissionController {
         user.setRole(request.getRole().toUpperCase());
         user.setDepartment(request.getDepartment());
         user.setStatus(1);
-        userMapper.insert(user);
+        userRepository.save(user);
         user.setPassword(null);
         log.info("User created: {}", user.getUsername());
         return R.ok(user);
@@ -84,32 +85,31 @@ public class PermissionController {
     @PutMapping("/users/{userId}")
     @AuditLog(action = "UPDATE_USER", resource = "USER")
     public R<User> updateUser(HttpServletRequest httpRequest, @PathVariable Long userId, @RequestBody UpdateUserRequest request) {
-        User user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(404, "用户不存在");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
+
         if (request.getRealName() != null) user.setRealName(request.getRealName());
         if (request.getEmail() != null) user.setEmail(request.getEmail());
         if (request.getDepartment() != null) user.setDepartment(request.getDepartment());
         if (request.getRole() != null) user.setRole(request.getRole().toUpperCase());
-        userMapper.updateById(user);
+        userRepository.save(user);
         user.setPassword(null);
         log.info("User {} updated", userId);
         return R.ok(user);
     }
 
     /**
-     * 删除用户。
+     * 删除用户（逻辑删除）。
      */
     @DeleteMapping("/users/{userId}")
     @AuditLog(action = "DELETE_USER", resource = "USER")
     public R<Void> deleteUser(HttpServletRequest httpRequest, @PathVariable Long userId) {
-        User user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(404, "用户不存在");
-        }
-        userMapper.deleteById(userId);
-        log.info("User {} deleted", userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
+        // 软删除：标记 deleted=1
+        user.setDeleted(1);
+        userRepository.save(user);
+        log.info("User {} deleted (soft)", userId);
         return R.ok();
     }
 
@@ -119,12 +119,10 @@ public class PermissionController {
     @PutMapping("/users/{userId}/status")
     @AuditLog(action = "TOGGLE_STATUS", resource = "USER")
     public R<Void> toggleUserStatus(HttpServletRequest httpRequest, @PathVariable Long userId, @RequestBody UpdateStatusRequest request) {
-        User user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(404, "用户不存在");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
         user.setStatus(request.getStatus());
-        userMapper.updateById(user);
+        userRepository.save(user);
         log.info("User {} status set to {}", userId, request.getStatus());
         return R.ok();
     }
@@ -135,12 +133,10 @@ public class PermissionController {
     @PutMapping("/users/{userId}/password")
     @AuditLog(action = "RESET_PASSWORD", resource = "USER")
     public R<Void> resetPassword(HttpServletRequest httpRequest, @PathVariable Long userId, @RequestBody ResetPasswordRequest request) {
-        User user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(404, "用户不存在");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userMapper.updateById(user);
+        userRepository.save(user);
         log.info("User {} password reset", userId);
         return R.ok();
     }
@@ -165,12 +161,10 @@ public class PermissionController {
     @PutMapping("/users/{userId}/role")
     @AuditLog(action = "UPDATE_ROLE", resource = "USER")
     public R<Void> updateUserRole(HttpServletRequest httpRequest, @PathVariable Long userId, @RequestBody UpdateRoleRequest request) {
-        User user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(404, "用户不存在");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
         user.setRole(request.getRole().toUpperCase());
-        userMapper.updateById(user);
+        userRepository.save(user);
         log.info("User {} role updated to {}", userId, request.getRole());
         return R.ok();
     }
@@ -236,15 +230,9 @@ public class PermissionController {
         OffsetDateTime start = startTime != null ? OffsetDateTime.parse(startTime) : null;
         OffsetDateTime end = endTime != null ? OffsetDateTime.parse(endTime) : null;
 
-        List<AuditLogEntity> records = auditLogMapper.selectByCondition(userId, start, end);
-
-        // 手动分页
-        Page<AuditLogEntity> page = new Page<>(pageNum, pageSize);
-        int total = records.size();
-        page.setTotal(total);
-        int fromIndex = Math.min((pageNum - 1) * pageSize, total);
-        int toIndex = Math.min(fromIndex + pageSize, total);
-        page.setRecords(records.subList(fromIndex, toIndex));
+        // 真正的数据库级分页（替代原来的内存分页）
+        PageRequest pageRequest = PageRequest.of(pageNum - 1, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<AuditLogEntity> page = auditLogRepository.findByCondition(userId, start, end, pageRequest);
 
         return R.ok(page);
     }

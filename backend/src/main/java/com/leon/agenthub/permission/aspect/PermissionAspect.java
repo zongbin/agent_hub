@@ -6,8 +6,8 @@ import com.leon.agenthub.permission.annotation.RequirePermission;
 import com.leon.agenthub.permission.enums.SecurityLevel;
 import com.leon.agenthub.permission.enums.UserRole;
 import com.leon.agenthub.permission.exception.PermissionDeniedException;
-import com.leon.agenthub.permission.mapper.AuditLogMapper;
 import com.leon.agenthub.permission.model.AuditLogEntity;
+import com.leon.agenthub.permission.repository.AuditLogRepository;
 import com.leon.agenthub.permission.service.PermissionService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ public class PermissionAspect {
 
     private final SecurityContextUtil securityContextUtil;
     private final PermissionService permissionService;
-    private final AuditLogMapper auditLogMapper;
+    private final AuditLogRepository auditLogRepository;
 
     /**
      * 前置通知 — 在方法执行前校验权限。
@@ -91,7 +91,7 @@ public class PermissionAspect {
             detail.put("timestamp", OffsetDateTime.now().toString());
             auditLog.setDetail(detail);
 
-            auditLogMapper.insert(auditLog);
+            auditLogRepository.save(auditLog);
         } catch (Exception e) {
             log.error("Failed to save denied audit log: {}", e.getMessage(), e);
         }

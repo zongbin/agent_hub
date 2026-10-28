@@ -19,7 +19,7 @@ Interactive prototype: `doc/产品文档/企业知识管理Agent_原型_MVP.html
 | Layer | Technology |
 |-------|-----------|
 | Frontend | Vue 3 + TypeScript + Element Plus + TailwindCSS 3 |
-| Backend API | Spring Boot 3.x + Java 17, MyBatis-Plus 3 |
+| Backend API | Spring Boot 3.x + Java 17, Hibernate + Spring Data JPA |
 | ORM / DB | PostgreSQL 16 + pgvector extension (vector search inside the same DB as business data — this is a deliberate choice, not an oversight) |
 | Cache / State / SSE | Redis 7 |
 | File storage | MinIO (S3-compatible, self-hosted) |
@@ -56,14 +56,14 @@ Interactive prototype: `doc/产品文档/企业知识管理Agent_原型_MVP.html
 agent_hub/
 ├── backend/                    # Spring Boot 3 + Java 17
 │   └── src/main/java/com/company/agenthub/
-│       ├── auth/               # JWT login, SSO integration point
+│       ├── auth/               # JWT login, repository, security
 │       ├── qa/                 # RAG pipeline: query processing, retrieval, generation
-│       ├── knowledge/          # Document upload, parsing, chunking, indexing
+│       ├── knowledge/          # Document upload, parsing, chunking, indexing (repository pattern)
 │       ├── agent/              # SuperAgent HTTP client, task/step tracking
-│       ├── permission/         # @RequirePermission, RBAC, security levels
+│       ├── permission/         # @RequirePermission, RBAC, security levels, converters
 │       ├── audit/              # AuditAspect, audit log recording
 │       ├── connector/          # Feishu / WeCom document sync
-│       └── common/             # LLM client, embedding service, shared config
+│       └── common/             # LLM client, embedding service, converters, shared config
 ├── agent-service/              # Python LangGraph microservice
 │   ├── planner/                # LLM plan generation
 │   ├── executor/               # Step execution loop
@@ -79,12 +79,14 @@ agent_hub/
 └── doc/                        # PRD, technical design, prototype (already present)
 ```
 
-## Database Schema Notes
+## Database Schema Management
 
-- `document_chunks` uses `vector(1024)` — dimension must match the embedding model (bge-large-zh = 1024).
-- Vector search uses cosine distance operator `<=>` with HNSW index (`m=16, ef_construction=64`).
-- Permission-aware retrieval always JOINs `document_chunks` → `documents` and filters on `security_level` + `doc_permissions`. Never query chunks without this join.
-- `agent_tasks` / `agent_steps` persist plan and execution state for resume-after-pause and audit.
+- 数据库 schema 由 Hibernate 自动管理（`spring.jpa.hibernate.ddl-auto: update`），无需 Flyway 迁移脚本。
+- 启动时 Hibernate 自动根据实体注解创建/更新表结构。
+- `document_chunks` 使用 `vector(1024)` — 维度必须与嵌入模型匹配（bge-large-zh = 1024）。
+- 向量搜索使用余弦距离操作符 `<=>`，配合 HNSW 索引（`m=16, ef_construction=64`）。
+- 权限感知检索始终 JOIN `document_chunks` → `documents`，并过滤 `security_level` + `doc_permissions`。禁止不带此 JOIN 查询 chunks。
+- `agent_tasks` / `agent_steps` 持久化计划和执行状态，支持暂停后恢复和审计。
 
 ## API Conventions
 

@@ -1,9 +1,8 @@
 package com.leon.agenthub.permission.model;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.io.Serializable;
 import java.time.OffsetDateTime;
@@ -14,21 +13,28 @@ import java.time.OffsetDateTime;
  * <p>用于机密文档的细粒度授权，支持按用户或按部门授权。
  */
 @Data
-@TableName("doc_permissions")
+@Entity
+@Table(name = "doc_permissions")
 public class DocPermission implements Serializable {
 
-    @TableId(type = IdType.AUTO)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /** 文档 ID */
+    @Column(name = "document_id", nullable = false)
     private Long documentId;
 
     /** 被授权用户 ID */
+    @Column(name = "grantee_id", nullable = false)
     private Long granteeId;
 
     /** 权限类型：READ / WRITE */
+    @Column(nullable = false, length = 16)
     private String permission;
 
     /** 创建时间 */
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 }

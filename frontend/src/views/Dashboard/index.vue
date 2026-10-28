@@ -58,7 +58,7 @@ const stats = [
             🤖
           </div>
           <div class="quick-info">
-            <div class="quick-title">SuperAgent</div>
+            <div class="quick-title">超级智能体</div>
             <div class="quick-desc">让 AI 自主完成复杂任务</div>
           </div>
         </div>

@@ -1,8 +1,7 @@
 package com.leon.agenthub.permission.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.leon.agenthub.permission.mapper.DocPermissionMapper;
 import com.leon.agenthub.permission.model.DocPermission;
+import com.leon.agenthub.permission.repository.DocPermissionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DocumentPermissionService {
 
-    private final DocPermissionMapper docPermissionMapper;
+    private final DocPermissionRepository docPermissionRepository;
 
     /**
      * 检查用户是否拥有指定文档的访问权限。
@@ -33,7 +32,7 @@ public class DocumentPermissionService {
         if (documentId == null || userId == null) {
             return false;
         }
-        DocPermission permission = docPermissionMapper.selectByDocumentAndUser(documentId, userId);
+        DocPermission permission = docPermissionRepository.findByDocumentAndUser(documentId, userId);
         return permission != null;
     }
 
@@ -48,20 +47,20 @@ public class DocumentPermissionService {
      * @return 创建或更新后的授权记录
      */
     public DocPermission grantDocument(Long documentId, Long userId, String permission) {
-        DocPermission existing = docPermissionMapper.selectByDocumentAndUser(documentId, userId);
+        DocPermission existing = docPermissionRepository.findByDocumentAndUser(documentId, userId);
         if (existing != null) {
             existing.setPermission(permission);
-            docPermissionMapper.updateById(existing);
+            DocPermission updated = docPermissionRepository.save(existing);
             log.info("Updated document {} permission for user {} to {}", documentId, userId, permission);
-            return existing;
+            return updated;
         }
         DocPermission docPermission = new DocPermission();
         docPermission.setDocumentId(documentId);
         docPermission.setGranteeId(userId);
         docPermission.setPermission(permission);
-        docPermissionMapper.insert(docPermission);
+        DocPermission saved = docPermissionRepository.save(docPermission);
         log.info("Granted document {} to user {} with permission {}", documentId, userId, permission);
-        return docPermission;
+        return saved;
     }
 
     /**
@@ -71,9 +70,7 @@ public class DocumentPermissionService {
      * @return 授权记录列表
      */
     public List<DocPermission> listByDocument(Long documentId) {
-        return docPermissionMapper.selectList(
-                new LambdaQueryWrapper<DocPermission>().eq(DocPermission::getDocumentId, documentId)
-        );
+        return docPermissionRepository.findByDocumentId(documentId);
     }
 
     /**
@@ -84,7 +81,7 @@ public class DocumentPermissionService {
      * @return true 表示成功删除
      */
     public boolean revokeDocument(Long documentId, Long userId) {
-        int rows = docPermissionMapper.deleteByDocumentAndUser(documentId, userId);
+        int rows = docPermissionRepository.deleteByDocumentAndUser(documentId, userId);
         log.info("Revoked document {} from user {}, affected rows: {}", documentId, userId, rows);
         return rows > 0;
     }
