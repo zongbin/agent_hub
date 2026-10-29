@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadInstance } from 'element-plus'
+import { Search, Plus, Refresh, UploadFilled } from '@element-plus/icons-vue'
 import { knowledgeApi, type DocumentStatus, type DocumentVO } from '@/api/knowledge'
 
 const router = useRouter()
@@ -147,6 +148,7 @@ const handleQuickUpload = async () => {
 
 /** 格式化文件大小 */
 const formatFileSize = (bytes: number): string => {
+  if (!bytes) return '-'
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -187,20 +189,30 @@ const statusLabel = (status: string): string => {
   return map[status] || status
 }
 
+/** 安全等级显示文本 */
+const securityLabel = (level: string): string => {
+  const map: Record<string, string> = {
+    PUBLIC: '公开',
+    INTERNAL: '内部',
+    CONFIDENTIAL: '机密'
+  }
+  return map[level] || level
+}
+
 onMounted(() => {
   loadDocuments()
 })
 </script>
 
 <template>
-  <div>
+  <div class="knowledge-page">
     <!-- 顶部操作栏 -->
-    <div class="flex justify-between items-center mb-4">
-      <div class="flex items-center gap-3">
+    <div class="toolbar glass-card">
+      <div class="toolbar-filters">
         <el-input
           v-model="searchKey"
           placeholder="搜索文档标题..."
-          class="w-64"
+          class="search-input"
           clearable
           @keyup.enter="handleSearch"
         >
@@ -211,7 +223,7 @@ onMounted(() => {
         <el-select
           v-model="filterSecurity"
           placeholder="安全等级"
-          class="w-32"
+          class="filter-select"
           clearable
           @change="handleFilterChange"
         >
@@ -225,7 +237,7 @@ onMounted(() => {
         <el-select
           v-model="filterStatus"
           placeholder="状态"
-          class="w-32"
+          class="filter-select"
           clearable
           @change="handleFilterChange"
         >
@@ -238,68 +250,75 @@ onMounted(() => {
         </el-select>
         <el-button type="primary" @click="handleSearch">搜索</el-button>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="toolbar-actions">
+        <span class="count-chip">共 {{ pagination.total }} 篇文档</span>
+        <el-button :icon="Refresh" circle title="刷新" @click="loadDocuments" />
         <el-button type="primary" @click="dialogVisible = true">
           <el-icon class="mr-1"><Plus /></el-icon>
           上传文档
         </el-button>
-        <el-button :icon="Refresh" @click="loadDocuments" circle title="刷新" />
       </div>
     </div>
 
     <!-- 文档表格 -->
-    <el-table :data="documents" border v-loading="loading" stripe>
-      <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip>
-        <template #default="{ row }">
-          <el-link type="primary" @click="handleView(row)" :underline="false">
-            {{ row.title }}
-          </el-link>
-        </template>
-      </el-table-column>
-      <el-table-column prop="fileType" label="类型" width="80">
-        <template #default="{ row }">
-          <el-tag size="small" effect="plain">{{ row.fileType?.toUpperCase() }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="fileSize" label="大小" width="100">
-        <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
-      </el-table-column>
-      <el-table-column prop="securityLevel" label="安全等级" width="100">
-        <template #default="{ row }">
-          <el-tag
-            size="small"
-            :type="row.securityLevel === 'CONFIDENTIAL' ? 'danger' : row.securityLevel === 'INTERNAL' ? 'warning' : 'success'"
-          >
-            {{ row.securityLevel }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag size="small" :type="statusTagType(row.status)">
-            {{ statusLabel(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="chunkCount" label="分块数" width="80" align="center" />
-      <el-table-column prop="createdAt" label="上传时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
-        <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="handleView(row)">查看</el-button>
-          <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div class="table-card glass-card">
+      <el-table :data="documents" v-loading="loading" stripe>
+        <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-link type="primary" class="doc-link" :underline="false" @click="handleView(row)">
+              {{ row.title }}
+            </el-link>
+          </template>
+        </el-table-column>
+        <el-table-column prop="fileType" label="类型" width="80">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain">{{ row.fileType?.toUpperCase() }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="fileSize" label="大小" width="100">
+          <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
+        </el-table-column>
+        <el-table-column prop="securityLevel" label="安全等级" width="100">
+          <template #default="{ row }">
+            <el-tag
+              size="small"
+              :type="row.securityLevel === 'CONFIDENTIAL' ? 'danger' : row.securityLevel === 'INTERNAL' ? 'warning' : 'success'"
+            >
+              {{ securityLabel(row.securityLevel) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" :type="statusTagType(row.status)">
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="chunkCount" label="分块数" width="90" align="center">
+          <template #default="{ row }">
+            <span class="chunk-count">{{ row.chunkCount ?? 0 }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createdAt" label="上传时间" width="170">
+          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="handleView(row)">查看</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <!-- 空状态 -->
-    <el-empty v-if="!loading && documents.length === 0" description="暂无文档" class="mt-8">
-      <el-button type="primary" @click="dialogVisible = true">上传第一篇文档</el-button>
-    </el-empty>
+      <!-- 空状态 -->
+      <el-empty v-if="!loading && documents.length === 0" description="暂无文档">
+        <el-button type="primary" @click="dialogVisible = true">上传第一篇文档</el-button>
+      </el-empty>
+    </div>
 
     <!-- 分页 -->
-    <div class="flex justify-end mt-4">
+    <div v-if="pagination.total > 0" class="pagination-bar">
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.size"
@@ -329,12 +348,12 @@ onMounted(() => {
             :on-change="handleFileChange"
             accept=".docx,.pdf,.pptx,.xlsx,.txt,.md"
           >
-            <div class="p-6 text-slate-400">
+            <div class="upload-drop">
               <el-icon class="text-3xl mb-2"><UploadFilled /></el-icon>
               <div>拖拽文件到此处，或<em>点击上传</em></div>
             </div>
             <template #tip>
-              <div class="text-slate-400 text-xs">
+              <div class="upload-tip">
                 支持 docx / pdf / pptx / xlsx / txt / md，单文件最大 100MB
               </div>
             </template>
@@ -368,6 +387,82 @@ onMounted(() => {
   </div>
 </template>
 
-<script lang="ts">
-import { Search, Plus, Refresh } from '@element-plus/icons-vue'
-</script>
+<style scoped>
+.knowledge-page {
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ===== 工具栏 ===== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+
+.toolbar-filters,
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  width: 250px;
+}
+
+.filter-select {
+  width: 130px;
+}
+
+.count-chip {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+}
+
+/* ===== 表格卡片 ===== */
+.table-card {
+  padding: 6px 10px 14px;
+  overflow: hidden;
+}
+
+.doc-link {
+  font-weight: 500;
+}
+
+.chunk-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+/* ===== 分页 ===== */
+.pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* ===== 上传 ===== */
+.upload-drop {
+  padding: 26px 0;
+  color: var(--text-faint);
+}
+
+.upload-drop em {
+  color: var(--ai-cyan);
+  font-style: normal;
+}
+
+.upload-tip {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+</style>

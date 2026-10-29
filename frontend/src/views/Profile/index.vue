@@ -24,17 +24,20 @@ onMounted(() => {
 
 <template>
   <div class="profile-page">
-    <div class="page-header">
-      <h2>个人设置</h2>
-      <p class="page-desc">修改个人资料和密码</p>
-    </div>
+    <header class="page-header">
+      <h2 class="page-title gradient-text">个人设置</h2>
+      <p class="page-desc">管理你的资料信息与登录凭证</p>
+    </header>
 
     <div class="profile-cards">
       <!-- 个人资料卡片 -->
-      <div class="profile-card">
+      <section class="profile-card glass-card">
         <div class="card-header">
-          <el-icon :size="20"><User /></el-icon>
+          <span class="card-icon">
+            <el-icon :size="18"><User /></el-icon>
+          </span>
           <h3>个人资料</h3>
+          <span class="card-line"></span>
         </div>
         <el-form
           ref="profileFormRef"
@@ -60,13 +63,16 @@ onMounted(() => {
             </el-button>
           </el-form-item>
         </el-form>
-      </div>
+      </section>
 
       <!-- 修改密码卡片 -->
-      <div class="profile-card">
+      <section class="profile-card glass-card">
         <div class="card-header">
-          <el-icon :size="20"><Lock /></el-icon>
+          <span class="card-icon card-icon--cyan">
+            <el-icon :size="18"><Lock /></el-icon>
+          </span>
           <h3>修改密码</h3>
+          <span class="card-line"></span>
         </div>
         <el-form
           ref="passwordFormRef"
@@ -105,58 +111,81 @@ onMounted(() => {
             </el-button>
           </el-form-item>
         </el-form>
-      </div>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped>
 .profile-page {
-  max-width: 720px;
+  max-width: 760px;
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
-.page-header h2 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #0F172A;
-  margin: 0 0 4px;
+.page-title {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
 }
 
 .page-desc {
   font-size: 13px;
-  color: #64748B;
+  color: var(--text-faint);
   margin: 0;
 }
 
 .profile-cards {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .profile-card {
-  background: white;
-  border-radius: 10px;
-  border: 1px solid #E2E8F0;
-  padding: 24px;
+  padding: 24px 26px;
 }
 
 .card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  color: #0F172A;
+  gap: 11px;
+  margin-bottom: 22px;
 }
 
 .card-header h3 {
   font-size: 15px;
   font-weight: 600;
+  color: var(--text);
   margin: 0;
+  white-space: nowrap;
+}
+
+.card-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+}
+
+.card-icon--cyan {
+  color: var(--accent-text);
+  background: var(--tint-cyan-bg);
+  border-color: var(--tint-cyan-border);
+}
+
+.card-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
 }
 
 .profile-form {

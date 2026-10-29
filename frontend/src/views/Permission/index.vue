@@ -25,13 +25,27 @@ const activeTab = ref('users')
 
 <style scoped>
 .permission-page {
-  max-width: 1100px;
+  max-width: 1180px;
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .permission-tabs {
-  background: white;
-  border-radius: 10px;
-  padding: 16px 24px;
-  border: 1px solid #E2E8F0;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 6px 22px 22px;
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-card);
+}
+
+.permission-tabs :deep(.el-tabs__header) {
+  margin-bottom: 18px;
+}
+
+.permission-tabs :deep(.el-tabs__item) {
+  font-size: 14px;
+  font-weight: 500;
+  height: 48px;
+  line-height: 48px;
 }
 </style>

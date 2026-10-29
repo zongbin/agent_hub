@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft, Refresh, Delete, MagicStick, Files } from '@element-plus/icons-vue'
 import { knowledgeApi, type DocumentChunk, type DocumentVO } from '@/api/knowledge'
 
 const route = useRoute()
@@ -123,141 +124,154 @@ const securityTagType = (level: string): string => {
   return map[level] || 'info'
 }
 
+/** 安全等级显示文本 */
+const securityLabel = (level: string): string => {
+  const map: Record<string, string> = {
+    PUBLIC: '公开',
+    INTERNAL: '内部',
+    CONFIDENTIAL: '机密'
+  }
+  return map[level] || level
+}
+
 onMounted(() => {
   loadDetail()
 })
 </script>
 
 <template>
-  <div v-loading="loading">
+  <div v-loading="loading" class="detail-page">
     <div v-if="doc">
       <!-- 返回栏 -->
       <div class="mb-4">
-        <el-button link @click="router.back()">
+        <el-button link class="back-btn" @click="router.back()">
           <el-icon class="mr-1"><ArrowLeft /></el-icon>
           返回列表
         </el-button>
       </div>
 
-      <el-card>
-        <!-- 头部 -->
-        <template #header>
-          <div class="flex justify-between items-center">
-            <div class="flex items-center gap-3">
-              <span class="text-lg font-bold">{{ doc.title }}</span>
-              <el-tag :type="securityTagType(doc.securityLevel)" size="small">
-                {{ doc.securityLevel }}
-              </el-tag>
-              <el-tag :type="statusTagType(doc.status)" size="small">
-                {{ statusLabel(doc.status) }}
-              </el-tag>
-            </div>
-            <div class="flex items-center gap-2">
-              <el-button
-                v-if="doc.status === 'PROCESSING'"
-                link
-                type="primary"
-                @click="loadDetail"
-              >
-                <el-icon><Refresh /></el-icon>
-                刷新状态
-              </el-button>
-              <el-button link type="danger" @click="handleDelete">
-                <el-icon><Delete /></el-icon>
-                删除
-              </el-button>
-            </div>
-          </div>
-        </template>
-
-        <!-- 元信息 -->
-        <el-descriptions :column="3" border class="mb-4">
-          <el-descriptions-item label="文件名">{{ doc.fileName }}</el-descriptions-item>
-          <el-descriptions-item label="文件类型">{{ doc.fileType?.toUpperCase() }}</el-descriptions-item>
-          <el-descriptions-item label="文件大小">{{ formatFileSize(doc.fileSize) }}</el-descriptions-item>
-          <el-descriptions-item label="分块数量">{{ doc.chunkCount ?? 0 }}</el-descriptions-item>
-          <el-descriptions-item label="上传时间">{{ formatDate(doc.createdAt) }}</el-descriptions-item>
-          <el-descriptions-item label="文档 ID">{{ doc.id }}</el-descriptions-item>
-        </el-descriptions>
-
-        <!-- 标签 -->
-        <div v-if="doc.tags && doc.tags.length > 0" class="mb-4">
-          <h3 class="font-bold mb-2 text-sm text-slate-500">标签</h3>
-          <div class="flex flex-wrap gap-2">
-            <el-tag v-for="tag in doc.tags" :key="tag" type="info" effect="plain">
-              {{ tag }}
+      <!-- 头部概览 -->
+      <section class="doc-hero glass-card glow-strip">
+        <div class="doc-hero-main">
+          <div class="doc-hero-tags">
+            <el-tag :type="securityTagType(doc.securityLevel)" size="small">
+              {{ securityLabel(doc.securityLevel) }}
             </el-tag>
-          </div>
-        </div>
-
-        <!-- AI 摘要 -->
-        <div class="mb-4">
-          <h3 class="font-bold mb-2 text-sm text-slate-500">
-            <el-icon class="mr-1"><MagicStick /></el-icon>
-            AI 摘要
-          </h3>
-          <div v-if="doc.summary" class="bg-slate-50 rounded p-4 text-slate-700 leading-relaxed">
-            {{ doc.summary }}
-          </div>
-          <el-skeleton v-else :rows="2" animated />
-        </div>
-
-        <!-- 分块内容 -->
-        <div class="mb-4">
-          <h3 class="font-bold mb-2 text-sm text-slate-500">
-            <el-icon class="mr-1"><Files /></el-icon>
-            分块内容
-            <span v-if="chunks.length" class="font-normal text-slate-400">
-              （共 {{ chunks.length }} 块）
+            <el-tag :type="statusTagType(doc.status)" size="small">
+              {{ statusLabel(doc.status) }}
+            </el-tag>
+            <span v-if="doc.tags && doc.tags.length" class="tag-row">
+              <el-tag v-for="tag in doc.tags" :key="tag" type="info" effect="plain" size="small">
+                {{ tag }}
+              </el-tag>
             </span>
-          </h3>
-
-          <div v-loading="chunksLoading">
-            <el-empty v-if="!chunksLoading && chunks.length === 0" description="暂无分块内容" :image-size="60" />
-            <el-collapse v-else v-model="activeChunks" accordion>
-              <el-collapse-item
-                v-for="chunk in chunks"
-                :key="chunk.chunkIndex"
-                :name="chunk.chunkIndex"
-              >
-                <template #title>
-                  <div class="flex items-center gap-2 text-sm">
-                    <el-tag size="small" type="info" effect="plain">#{{ chunk.chunkIndex + 1 }}</el-tag>
-                    <span class="text-slate-400 text-xs">{{ chunk.charCount }} 字</span>
-                  </div>
-                </template>
-                <pre class="whitespace-pre-wrap font-sans text-sm text-slate-700 leading-relaxed m-0">{{ chunk.content }}</pre>
-              </el-collapse-item>
-            </el-collapse>
           </div>
+          <h1 class="doc-title">{{ doc.title }}</h1>
+          <p class="doc-file">
+            {{ doc.fileName }} · {{ doc.fileType?.toUpperCase() }} ·
+            {{ formatFileSize(doc.fileSize) }}
+          </p>
         </div>
+        <div class="doc-hero-actions">
+          <el-button
+            v-if="doc.status === 'PROCESSING'"
+            type="primary"
+            plain
+            @click="loadDetail"
+          >
+            <el-icon class="mr-1"><Refresh /></el-icon>
+            刷新状态
+          </el-button>
+          <el-button type="danger" plain @click="handleDelete">
+            <el-icon class="mr-1"><Delete /></el-icon>
+            删除
+          </el-button>
+        </div>
+      </section>
 
-        <!-- 处理中提示 -->
-        <el-alert
-          v-if="doc.status === 'PROCESSING'"
-          type="warning"
-          :closable="false"
-          show-icon
-          class="mt-4"
-        >
-          <template #title>
-            文档正在处理中，系统正在进行文本解析、分块和向量化，请稍后刷新查看结果。
-          </template>
-        </el-alert>
+      <!-- 元信息 -->
+      <div class="meta-grid glass-card">
+        <div class="meta-item">
+          <span class="meta-label">分块数量</span>
+          <span class="meta-value">{{ doc.chunkCount ?? 0 }}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">文档 ID</span>
+          <span class="meta-value">{{ doc.id }}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">上传时间</span>
+          <span class="meta-value">{{ formatDate(doc.createdAt) }}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">安全等级</span>
+          <span class="meta-value">{{ securityLabel(doc.securityLevel) }}</span>
+        </div>
+      </div>
 
-        <!-- 处理失败提示 -->
-        <el-alert
-          v-if="doc.status === 'FAILED'"
-          type="error"
-          :closable="false"
-          show-icon
-          class="mt-4"
-        >
-          <template #title>
-            文档处理失败，请检查文件格式是否正确，或重新上传。
-          </template>
-        </el-alert>
-      </el-card>
+      <!-- AI 摘要 -->
+      <section class="panel glass-card">
+        <h3 class="panel-title">
+          <span class="panel-icon"><el-icon :size="15"><MagicStick /></el-icon></span>
+          AI 摘要
+        </h3>
+        <div v-if="doc.summary" class="summary-box">{{ doc.summary }}</div>
+        <el-skeleton v-else :rows="2" animated />
+      </section>
+
+      <!-- 分块内容 -->
+      <section class="panel glass-card">
+        <h3 class="panel-title">
+          <span class="panel-icon"><el-icon :size="15"><Files /></el-icon></span>
+          分块内容
+          <span v-if="chunks.length" class="panel-count">共 {{ chunks.length }} 块</span>
+        </h3>
+
+        <div v-loading="chunksLoading">
+          <el-empty v-if="!chunksLoading && chunks.length === 0" description="暂无分块内容" :image-size="60" />
+          <el-collapse v-else v-model="activeChunks" accordion>
+            <el-collapse-item
+              v-for="chunk in chunks"
+              :key="chunk.chunkIndex"
+              :name="chunk.chunkIndex"
+            >
+              <template #title>
+                <div class="chunk-title">
+                  <el-tag size="small" type="info" effect="plain">#{{ chunk.chunkIndex + 1 }}</el-tag>
+                  <span class="chunk-chars">{{ chunk.charCount }} 字</span>
+                </div>
+              </template>
+              <pre class="chunk-content">{{ chunk.content }}</pre>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
+      </section>
+
+      <!-- 处理中提示 -->
+      <el-alert
+        v-if="doc.status === 'PROCESSING'"
+        type="warning"
+        :closable="false"
+        show-icon
+        class="mt-4"
+      >
+        <template #title>
+          文档正在处理中，系统正在进行文本解析、分块和向量化，请稍后刷新查看结果。
+        </template>
+      </el-alert>
+
+      <!-- 处理失败提示 -->
+      <el-alert
+        v-if="doc.status === 'FAILED'"
+        type="error"
+        :closable="false"
+        show-icon
+        class="mt-4"
+      >
+        <template #title>
+          文档处理失败，请检查文件格式是否正确，或重新上传。
+        </template>
+      </el-alert>
     </div>
 
     <el-empty v-else-if="!loading" description="文档不存在或已删除">
@@ -266,6 +280,173 @@ onMounted(() => {
   </div>
 </template>
 
-<script lang="ts">
-import { ArrowLeft, Refresh, Delete, MagicStick, Files } from '@element-plus/icons-vue'
-</script>
+<style scoped>
+.detail-page {
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.back-btn {
+  color: var(--text-dim);
+}
+
+.back-btn:hover {
+  color: var(--accent-text);
+}
+
+/* ===== 头部概览 ===== */
+.doc-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px;
+  margin-bottom: 14px;
+  background:
+    linear-gradient(120deg, rgba(124, 92, 255, 0.16) 0%, rgba(34, 211, 238, 0.08) 60%, transparent 100%),
+    var(--veil);
+}
+
+.doc-hero-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tag-row {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.doc-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0 0 8px;
+  word-break: break-all;
+}
+
+.doc-file {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+.doc-hero-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ===== 元信息 ===== */
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  padding: 4px;
+  margin-bottom: 14px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 18px;
+  background: var(--veil-solid);
+}
+
+.meta-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.meta-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 面板 ===== */
+.panel {
+  padding: 20px 24px;
+  margin-bottom: 14px;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 16px;
+}
+
+.panel-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+}
+
+.panel-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+/* ===== 摘要 ===== */
+.summary-box {
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  line-height: 1.95;
+  color: var(--text-soft);
+  background: var(--primary-softer);
+  border: 1px solid var(--primary-border);
+}
+
+/* ===== 分块 ===== */
+.chunk-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.chunk-chars {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.chunk-content {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--text-soft);
+}
+
+@media (max-width: 900px) {
+  .meta-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .doc-hero {
+    flex-direction: column;
+  }
+}
+</style>

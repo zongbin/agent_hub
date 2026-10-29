@@ -165,7 +165,7 @@ onMounted(() => {
 <template>
   <div class="audit-log">
     <!-- 查询工具栏 -->
-    <el-card class="query-card" shadow="never">
+    <div class="query-card">
       <el-form :inline="true" class="query-form">
         <el-form-item label="操作人">
           <el-input
@@ -200,11 +200,11 @@ onMounted(() => {
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
+    </div>
 
     <!-- 审计日志表格 -->
-    <el-card class="table-card" shadow="never">
-      <el-table :data="logs" v-loading="loading" border stripe>
+    <div class="table-card">
+      <el-table :data="logs" v-loading="loading" stripe>
         <el-table-column label="操作人" width="130">
           <template #default="{ row }">
             <div class="user-cell">
@@ -229,7 +229,7 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="IP 地址" width="130">
           <template #default="{ row }">
-            {{ row.ipAddress || '—' }}
+            <span class="ip-cell">{{ row.ipAddress || '—' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="结果" width="90">
@@ -260,22 +260,32 @@ onMounted(() => {
           @size-change="handleSizeChange"
         />
       </div>
-    </el-card>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .audit-log {
-  padding: 4px 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .query-card,
 .table-card {
-  border: 1px solid #E2E8F0;
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--glass-weak);
+  backdrop-filter: blur(14px);
+}
+
+.query-card {
+  padding: 16px 18px 2px;
+}
+
+.table-card {
+  padding: 6px 10px 16px;
 }
 
 .query-form {
@@ -285,15 +295,21 @@ onMounted(() => {
 .user-cell {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .user-avatar {
-  background: linear-gradient(135deg, #818CF8, #06B6D4);
+  background: linear-gradient(135deg, #7C5CFF, #22D3EE);
   font-size: 11px;
   font-weight: 600;
-  color: white;
+  color: #fff;
   flex-shrink: 0;
+}
+
+.ip-cell {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
 .pagination-wrapper {

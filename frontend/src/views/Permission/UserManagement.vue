@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
+import { Search, Plus } from '@element-plus/icons-vue'
 import type { UserItem, RoleInfo, CreateUserRequest } from '@/types/permission'
 import { permissionApi } from '@/api/permission'
 
@@ -153,14 +154,19 @@ onMounted(() => {
         placeholder="搜索用户名、姓名、部门..."
         class="search-input"
         clearable
-        prefix-icon="el-icon-search"
       >
         <template #prefix>
-          <el-icon><svg viewBox="0 0 1024 1024" width="16" height="16"><path fill="currentColor" d="M909.6 854.5L649.9 594.8C690.2 542.7 712 479 712 412c0-80.2-31.3-155.4-87.9-212.1-56.6-56.7-132-87.9-212.1-87.9s-155.5 31.3-212.1 87.9C143.2 256.5 112 331.8 112 412c0 80.1 31.3 155.5 87.9 212.1C256.5 680.8 331.8 712 412 712c67 0 130.6-21.8 182.7-62l259.7 259.6a8.2 8.2 0 0 0 11.6 0l43.6-43.5a8.2 8.2 0 0 0 0-11.6zM570.4 570.4C528 612.7 471.8 636 412 636s-116-23.3-158.4-65.6C211.3 528 188 471.8 188 412s23.3-116.1 65.6-158.4C296 211.3 352.2 188 412 188s116.1 23.2 158.4 65.6S636 352.2 636 412s-23.3 116.1-65.6 158.4z"/></svg></el-icon>
+          <el-icon><Search /></el-icon>
         </template>
       </el-input>
+
+      <el-button type="primary" @click="openCreateDialog">
+        <el-icon class="mr-1"><Plus /></el-icon>
+        新增用户
+      </el-button>
+
       <div class="role-legend">
-        <span class="legend-label">角色说明：</span>
+        <span class="legend-label">角色说明</span>
         <el-tag
           v-for="role in roles"
           :key="role.code"
@@ -173,56 +179,50 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 新增用户按钮 -->
-    <div class="table-toolbar">
-      <el-button type="primary" @click="openCreateDialog">
-        <el-icon><svg viewBox="0 0 1024 1024" width="14" height="14"><path fill="currentColor" d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm192 472c0 4.4-3.6 8-8 8H544v152c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V544H328c-4.4 0-8-3.6-8-8v-48c0-4.4 3.6-8 8-8h152V328c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v152h152c4.4 0 8 3.6 8 8v48z"/></svg></el-icon>
-        新增用户
-      </el-button>
-    </div>
-
     <!-- 用户表格 -->
-    <el-table :data="filteredUsers()" v-loading="loading" border stripe>
-      <el-table-column prop="username" label="用户名" min-width="120" />
-      <el-table-column prop="realName" label="姓名" min-width="100" />
-      <el-table-column prop="email" label="邮箱" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="department" label="部门" min-width="120">
-        <template #default="{ row }">
-          {{ row.department || '—' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="角色" width="120">
-        <template #default="{ row }">
-          <el-tag :type="roleTagType[row.role] as any" size="small">
-            {{ roleLabelMap[row.role] || row.role }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="状态" width="90">
-        <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-            {{ row.status === 1 ? '启用' : '禁用' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="openEditDialog(row)">
-            修改角色
-          </el-button>
-          <el-button
-            link
-            :type="row.status === 1 ? 'danger' : 'success'"
-            size="small"
-            @click="handleToggleStatus(row)"
-          >
-            {{ row.status === 1 ? '禁用' : '启用' }}
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div class="table-card">
+      <el-table :data="filteredUsers()" v-loading="loading" stripe>
+        <el-table-column prop="username" label="用户名" min-width="120" />
+        <el-table-column prop="realName" label="姓名" min-width="100" />
+        <el-table-column prop="email" label="邮箱" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="department" label="部门" min-width="120">
+          <template #default="{ row }">
+            {{ row.department || '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="角色" width="120">
+          <template #default="{ row }">
+            <el-tag :type="roleTagType[row.role] as any" size="small">
+              {{ roleLabelMap[row.role] || row.role }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
+              {{ row.status === 1 ? '启用' : '禁用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="openEditDialog(row)">
+              修改角色
+            </el-button>
+            <el-button
+              link
+              :type="row.status === 1 ? 'danger' : 'success'"
+              size="small"
+              @click="handleToggleStatus(row)"
+            >
+              {{ row.status === 1 ? '禁用' : '启用' }}
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-empty v-if="!loading && filteredUsers().length === 0" description="暂无用户数据" />
+      <el-empty v-if="!loading && filteredUsers().length === 0" description="暂无用户数据" />
+    </div>
 
     <!-- 新增用户对话框 -->
     <el-dialog v-model="createDialogVisible" title="新增用户" width="480px" :close-on-click-modal="false">
@@ -314,13 +314,14 @@ onMounted(() => {
 
 <style scoped>
 .user-management {
-  padding: 4px 0;
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* ===== 工具栏 ===== */
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
@@ -328,10 +329,6 @@ onMounted(() => {
 .search-input {
   width: 280px;
   flex-shrink: 0;
-}
-
-.table-toolbar {
-  margin-bottom: 12px;
 }
 
 .role-legend {
@@ -343,7 +340,7 @@ onMounted(() => {
 
 .legend-label {
   font-size: 12px;
-  color: #64748B;
+  color: var(--text-faint);
   white-space: nowrap;
 }
 
@@ -351,6 +348,16 @@ onMounted(() => {
   font-size: 11px;
 }
 
+/* ===== 表格 ===== */
+.table-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 6px 10px 14px;
+  background: var(--glass-weak);
+  backdrop-filter: blur(14px);
+}
+
+/* ===== 表单 ===== */
 .create-form {
   padding: 4px 0;
 }
@@ -369,19 +376,19 @@ onMounted(() => {
 
 .edit-label {
   font-size: 13px;
-  color: #64748B;
+  color: var(--text-dim);
   width: 80px;
   flex-shrink: 0;
 }
 
 .edit-value {
   font-size: 13px;
-  color: #0F172A;
+  color: var(--text);
 }
 
 .role-desc {
   font-size: 12px;
-  color: #94A3B8;
+  color: var(--text-faint);
   margin-left: 8px;
 }
 </style>

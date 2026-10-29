@@ -80,6 +80,7 @@ function getRoleLabel(role: string | undefined) {
     <div class="drawer-container">
       <!-- 抽屉顶部用户信息 -->
       <div class="drawer-header">
+        <span class="drawer-glow"></span>
         <div class="user-summary">
           <el-avatar :size="48" class="summary-avatar">
             {{ authStore.user?.realName?.[0] || authStore.user?.username?.[0] || 'U' }}
@@ -190,6 +191,9 @@ function getRoleLabel(role: string | undefined) {
 <style scoped>
 .profile-drawer :deep(.el-drawer__body) {
   padding: 0;
+  background:
+    linear-gradient(180deg, rgba(124, 92, 255, 0.1) 0%, transparent 28%),
+    transparent;
 }
 
 .drawer-container {
@@ -200,25 +204,42 @@ function getRoleLabel(role: string | undefined) {
 
 /* ===== 顶部用户摘要 ===== */
 .drawer-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid #E2E8F0;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.drawer-glow {
+  position: absolute;
+  top: -80px;
+  left: -40px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 92, 255, 0.4), transparent 68%);
+  filter: blur(24px);
+  animation: aurora 12s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .user-summary {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
 .summary-avatar {
-  background: linear-gradient(135deg, #818CF8, #06B6D4);
+  background: linear-gradient(135deg, #7C5CFF, #22D3EE);
   font-size: 18px;
   font-weight: 600;
-  color: white;
+  color: #fff;
+  box-shadow: 0 0 20px -6px rgba(124, 92, 255, 0.9);
 }
 
 .summary-info {
@@ -230,7 +251,7 @@ function getRoleLabel(role: string | undefined) {
 .summary-name {
   font-size: 15px;
   font-weight: 600;
-  color: #0F172A;
+  color: var(--text);
 }
 
 .summary-meta {
@@ -241,15 +262,16 @@ function getRoleLabel(role: string | undefined) {
 
 .summary-dept {
   font-size: 12px;
-  color: #64748B;
+  color: var(--text-faint);
 }
 
 .close-btn {
-  color: #94A3B8;
+  position: relative;
+  color: var(--text-faint);
 }
 
 .close-btn:hover {
-  color: #0F172A;
+  color: var(--text);
 }
 
 /* ===== Tab 区域 ===== */

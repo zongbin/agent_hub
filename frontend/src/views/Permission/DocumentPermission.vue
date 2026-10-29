@@ -109,16 +109,14 @@ onMounted(() => {
       </div>
     </el-alert>
 
-    <!-- 模拟文档列表（实际应从知识库接口获取） -->
-    <el-card class="doc-card" shadow="never">
-      <template #header>
-        <div class="card-header">
-          <span>文档授权列表</span>
-          <el-tag size="small" type="info">共 {{ permissions.length }} 条授权</el-tag>
-        </div>
-      </template>
+    <!-- 授权列表 -->
+    <div class="doc-card">
+      <div class="card-header">
+        <span class="card-title">文档授权列表</span>
+        <el-tag size="small" type="info">共 {{ permissions.length }} 条授权</el-tag>
+      </div>
 
-      <el-table :data="permissions" v-loading="loading" border stripe>
+      <el-table :data="permissions" v-loading="loading" stripe>
         <el-table-column prop="documentName" label="文档名称" min-width="180" show-overflow-tooltip />
         <el-table-column label="被授权人" width="140">
           <template #default="{ row }">
@@ -151,7 +149,7 @@ onMounted(() => {
           添加授权
         </el-button>
       </el-empty>
-    </el-card>
+    </div>
 
     <!-- 授权对话框 -->
     <el-dialog v-model="dialogVisible" title="授予文档权限" width="480px">
@@ -196,7 +194,7 @@ onMounted(() => {
 
 <style scoped>
 .doc-permission {
-  padding: 4px 0;
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .info-alert {
@@ -205,25 +203,35 @@ onMounted(() => {
 
 .alert-desc {
   font-size: 12px;
-  color: #64748B;
+  color: var(--text-dim);
   margin-top: 4px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .doc-card {
-  border: 1px solid #E2E8F0;
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 10px 14px;
+  background: var(--glass-weak);
+  backdrop-filter: blur(14px);
 }
 
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 8px 14px;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .doc-name {
   font-size: 13px;
-  color: #0F172A;
+  color: var(--text);
   font-weight: 500;
 }
 </style>

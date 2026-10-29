@@ -1,16 +1,2 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-html,
-body,
-#app {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
-}
+/* 样式入口已统一至 src/styles/index.css（AI 科技风设计系统）。
+   本文件保留以兼容历史引用，不再包含实际样式。 */

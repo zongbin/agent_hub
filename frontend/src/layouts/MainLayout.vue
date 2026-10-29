@@ -13,6 +13,7 @@ import {
   ArrowDown
 } from '@element-plus/icons-vue'
 import ProfileDrawer from '@/components/ProfileDrawer.vue'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -44,15 +45,21 @@ function openProfileDrawer() {
 
 /** 导航菜单 */
 const menuItems = [
-  { path: '/dashboard', title: '工作台', icon: HomeFilled },
-  { path: '/knowledge', title: '知识库', icon: Reading },
-  { path: '/qa', title: '智能问答', icon: ChatLineRound },
-  { path: '/agent', title: '超级智能体', icon: Cpu },
-  { path: '/permission', title: '权限管理', icon: UserFilled, adminOnly: true }
+  { path: '/dashboard', title: '工作台', icon: HomeFilled, desc: '知识运营总览' },
+  { path: '/knowledge', title: '知识库', icon: Reading, desc: '文档与向量索引' },
+  { path: '/qa', title: '智能问答', icon: ChatLineRound, desc: 'RAG 检索增强' },
+  { path: '/agent', title: '超级智能体', icon: Cpu, desc: '自主拆解复杂任务' },
+  { path: '/permission', title: '权限管理', icon: UserFilled, desc: '角色与审计', adminOnly: true }
 ]
 
 /** 当前页标题 */
 const pageTitle = computed(() => (route.meta.title as string) || '智知 AgentHub')
+
+/** 当前页副标题 */
+const pageDesc = computed(() => {
+  const item = menuItems.find((i) => route.path.startsWith(i.path))
+  return item?.desc || '企业级智能知识中枢'
+})
 
 /** 登出 */
 async function handleLogout() {
@@ -72,49 +79,67 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="app-layout">
+  <div class="app-layout ai-canvas">
     <!-- 侧边栏 -->
     <aside class="sidebar">
+      <!-- 极光光晕 -->
+      <div class="sidebar-aurora"></div>
+
       <!-- 品牌 -->
       <div class="sidebar-brand">
         <div class="brand-logo">
-          <span>智</span>
+          <span class="brand-ring"></span>
+          <span class="brand-glyph">智</span>
         </div>
         <div class="brand-text">
           <h1>智知 AgentHub</h1>
-          <span>企业知识管理</span>
+          <span class="brand-sub">Enterprise AI Hub</span>
         </div>
       </div>
 
       <!-- 导航 -->
       <nav class="sidebar-nav">
-        <div class="nav-section">功能</div>
+        <div class="nav-section">功能模块</div>
         <router-link
           v-for="item in menuItems"
           :key="item.path"
           :to="item.path"
           class="nav-item"
-          :class="{ active: route.path === item.path }"
+          :class="{ active: route.path.startsWith(item.path) }"
           v-show="!item.adminOnly || isAdmin"
         >
-          <el-icon :size="18">
+          <span class="nav-indicator"></span>
+          <el-icon :size="17">
             <component :is="item.icon" />
           </el-icon>
-          <span>{{ item.title }}</span>
+          <span class="nav-body">
+            <span class="nav-title">{{ item.title }}</span>
+            <span class="nav-desc">{{ item.desc }}</span>
+          </span>
         </router-link>
+
+        <div class="nav-section nav-section--second">系统</div>
+        <div class="nav-item nav-item--muted" @click="openProfileDrawer">
+          <span class="nav-indicator"></span>
+          <el-icon :size="17"><UserFilled /></el-icon>
+          <span class="nav-body">
+            <span class="nav-title">个人设置</span>
+            <span class="nav-desc">资料与密码</span>
+          </span>
+        </div>
       </nav>
 
       <!-- 用户信息 -->
       <div class="sidebar-footer">
-        <div class="user-card">
-          <el-avatar :size="32" class="user-avatar">
+        <div class="user-card" @click="openProfileDrawer">
+          <el-avatar :size="34" class="user-avatar">
             {{ authStore.user?.realName?.[0] || authStore.user?.username?.[0] || '管' }}
           </el-avatar>
           <div class="user-info">
             <div class="user-name">{{ authStore.user?.realName || authStore.user?.username }}</div>
             <div class="user-role">{{ getRoleLabel(authStore.user?.role) }}</div>
           </div>
-          <el-icon class="logout-icon" @click="handleLogout" title="退出登录">
+          <el-icon class="logout-icon" @click.stop="handleLogout" title="退出登录">
             <SwitchButton />
           </el-icon>
         </div>
@@ -125,8 +150,16 @@ async function handleLogout() {
     <main class="main-content">
       <!-- 头部 -->
       <header class="header">
-        <h2 class="page-title">{{ pageTitle }}</h2>
+        <div class="header-left">
+          <h2 class="page-title gradient-text">{{ pageTitle }}</h2>
+          <span class="page-desc">{{ pageDesc }}</span>
+        </div>
         <div class="header-right">
+          <ThemeToggle />
+          <span class="ai-badge">
+            <span class="ai-dot"></span>
+            AI 内核在线
+          </span>
           <div class="user-trigger" @click="openProfileDrawer">
             <el-avatar :size="32" class="trigger-avatar">
               {{ authStore.user?.realName?.[0] || authStore.user?.username?.[0] || 'U' }}
@@ -141,7 +174,11 @@ async function handleLogout() {
 
       <!-- 内容区 -->
       <div class="content-area">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="page" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </div>
     </main>
 
@@ -158,113 +195,207 @@ async function handleLogout() {
 
 /* ===== 侧边栏 ===== */
 .sidebar {
-  width: 240px;
-  background: linear-gradient(180deg, #1E1B4B 0%, #312E81 100%);
-  color: white;
+  position: relative;
+  width: var(--sidebar-width);
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+  background: var(--sidebar-veil);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  overflow: hidden;
 }
 
+/* 极光光晕 */
+.sidebar-aurora {
+  position: absolute;
+  top: -120px;
+  left: -60px;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 92, 255, 0.4) 0%, rgba(34, 211, 238, 0.12) 45%, transparent 70%);
+  filter: blur(20px);
+  animation: aurora 14s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ===== 品牌 ===== */
 .sidebar-brand {
-  padding: 18px 20px;
+  position: relative;
+  padding: 18px 18px 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 11px;
+  border-bottom: 1px solid var(--border);
 }
 
 .brand-logo {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #818CF8, #06B6D4);
-  border-radius: 8px;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: bold;
+  background: linear-gradient(135deg, #7C5CFF 0%, #22D3EE 100%);
+  box-shadow: 0 0 20px -4px rgba(124, 92, 255, 0.9);
+}
+
+.brand-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 14px;
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  animation: spin-slow 8s linear infinite;
+  border-top-color: transparent;
+  border-left-color: transparent;
+}
+
+.brand-glyph {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
 }
 
 .brand-text h1 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
+  letter-spacing: 0.02em;
   margin: 0;
+  background: var(--grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
-.brand-text span {
-  font-size: 11px;
-  opacity: 0.5;
+.brand-sub {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
 }
 
 /* ===== 导航 ===== */
 .sidebar-nav {
   flex: 1;
-  padding: 12px 10px;
+  padding: 14px 12px;
   overflow-y: auto;
 }
 
 .nav-section {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  opacity: 0.35;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
   padding: 0 10px;
-  margin: 12px 0 6px;
+  margin: 6px 0 10px;
+}
+
+.nav-section--second {
+  margin-top: 22px;
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   padding: 9px 12px;
-  border-radius: 8px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-md);
   font-size: 13px;
-  opacity: 0.65;
+  color: var(--text-dim);
   cursor: pointer;
-  transition: all 0.2s;
   text-decoration: none;
-  color: white;
-  margin-bottom: 2px;
+  overflow: hidden;
+  transition: color 0.2s, background 0.2s;
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  opacity: 1;
+  background: var(--surface-hover);
+  color: var(--text);
 }
 
 .nav-item.active {
-  background: rgba(255, 255, 255, 0.15);
+  color: var(--nav-active-text);
+  background: var(--nav-active-bg);
+  box-shadow: var(--nav-active-shadow);
+}
+
+.nav-item.active .nav-indicator {
   opacity: 1;
+  transform: scaleY(1);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.9);
+}
+
+/* 激活指示条 */
+.nav-indicator {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 2px;
+  height: 60%;
+  border-radius: 0 2px 2px 0;
+  background: linear-gradient(180deg, #7C5CFF, #22D3EE);
+  opacity: 0;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nav-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.nav-title {
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1.3;
+}
+
+.nav-desc {
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.3;
+}
+
+.nav-item.active .nav-desc {
+  color: var(--nav-active-desc);
 }
 
 /* ===== 底部用户 ===== */
 .sidebar-footer {
-  padding: 12px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  padding: 12px 14px 16px;
+  border-top: 1px solid var(--border);
 }
 
 .user-card {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .user-card:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-hover);
 }
 
-.user-avatar {
-  background: linear-gradient(135deg, #818CF8, #06B6D4);
-  font-size: 12px;
+.user-avatar,
+.trigger-avatar {
+  background: linear-gradient(135deg, #7C5CFF, #22D3EE);
+  font-size: 13px;
   font-weight: 600;
-  color: white;
+  color: #fff;
 }
 
 .user-info {
@@ -275,6 +406,7 @@ async function handleLogout() {
 .user-name {
   font-size: 12px;
   font-weight: 500;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -282,17 +414,17 @@ async function handleLogout() {
 
 .user-role {
   font-size: 10px;
-  opacity: 0.45;
+  color: var(--text-faint);
 }
 
 .logout-icon {
-  opacity: 0.4;
-  transition: opacity 0.2s;
+  color: var(--text-faint);
+  transition: color 0.2s;
   cursor: pointer;
 }
 
 .logout-icon:hover {
-  opacity: 1;
+  color: var(--ai-pink);
 }
 
 /* ===== 主内容 ===== */
@@ -301,57 +433,66 @@ async function handleLogout() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
 }
 
 .header {
-  height: 56px;
-  background: #FFFFFF;
-  border-bottom: 1px solid #E2E8F0;
+  height: var(--header-height);
   display: flex;
   align-items: center;
   padding: 0 24px;
   flex-shrink: 0;
+  background: var(--header-veil);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+}
+
+.header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
 }
 
 .page-title {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   margin: 0;
-  color: #0F172A;
+}
+
+.page-desc {
+  font-size: 12px;
+  color: var(--text-faint);
+  white-space: nowrap;
 }
 
 .header-right {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .user-trigger {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px;
-  border-radius: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, box-shadow 0.2s;
 }
 
 .user-trigger:hover {
-  background: #F1F5F9;
-}
-
-.trigger-avatar {
-  background: linear-gradient(135deg, #818CF8, #06B6D4);
-  font-size: 13px;
-  font-weight: 600;
-  color: white;
+  background: var(--surface-hover);
+  box-shadow: 0 0 0 1px var(--border);
 }
 
 .trigger-name {
   font-size: 13px;
   font-weight: 500;
-  color: #334155;
+  color: var(--text-soft);
   max-width: 120px;
   white-space: nowrap;
   overflow: hidden;
@@ -359,7 +500,7 @@ async function handleLogout() {
 }
 
 .trigger-arrow {
-  color: #94A3B8;
+  color: var(--text-faint);
   transition: transform 0.2s;
 }
 
@@ -371,5 +512,27 @@ async function handleLogout() {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
+}
+
+/* ===== 路由切换动效 ===== */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@media (max-width: 900px) {
+  .page-desc {
+    display: none;
+  }
 }
 </style>
