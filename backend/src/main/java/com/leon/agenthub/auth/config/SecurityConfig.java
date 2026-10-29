@@ -1,6 +1,7 @@
 package com.leon.agenthub.auth.config;
 
 import com.leon.agenthub.auth.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,6 +48,9 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 授权规则
                 .authorizeHttpRequests(auth -> auth
+                        // SSE 完成/超时会触发 ASYNC 派发，此时 JWT 过滤器不会重跑，
+                        // 放行 ASYNC/ERROR 派发避免流结束时被判定为匿名而拒绝
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(WHITE_LIST).permitAll()
                         .anyRequest().authenticated()
                 )

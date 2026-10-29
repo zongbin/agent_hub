@@ -1,5 +1,8 @@
 import request from './request'
 
+/** 文档处理状态（与后端 DocumentStatus 枚举一致） */
+export type DocumentStatus = 'PROCESSING' | 'ACTIVE' | 'FAILED' | 'DELETED'
+
 /** 文档信息 */
 export interface DocumentVO {
   id: number
@@ -10,7 +13,7 @@ export interface DocumentVO {
   securityLevel: string
   summary: string
   tags: string[]
-  status: string
+  status: DocumentStatus
   chunkCount: number
   createdAt: string
 }
@@ -28,7 +31,7 @@ export interface DocumentQuery {
   size?: number
   securityLevel?: string
   tag?: string
-  status?: number
+  status?: DocumentStatus
 }
 
 /** 分页文档列表响应 */

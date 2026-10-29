@@ -1,40 +1,67 @@
 package com.leon.agenthub.common.llm;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.leon.agenthub.common.client.LlmSummaryResult;
-import com.leon.agenthub.common.exception.BusinessException;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
-
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.leon.agenthub.auth.security.SecurityContextUtil;
+import com.leon.agenthub.common.advisor.MyLoggerAdvisor;
+import com.leon.agenthub.common.advisor.SensitiveWordAdvisor;
+import com.leon.agenthub.common.client.LlmSummaryResult;
+import com.leon.agenthub.common.exception.BusinessException;
+import com.leon.agenthub.permission.repository.DocPermissionRepository;
+import com.leon.agenthub.qa.rag.RagAdvisorService;
+
+import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
+
 /**
- * DeepSeek 对话服务 — 封装 Spring AI 的 {@link ChatClient}。
+ * 对话服务 — 封装 Spring AI 的 {@link ChatClient}，底层走阿里云 DashScope qwen。
  *
- * <p>替代原有的 {@code LlmSummaryClient}（手写 RestTemplate），
+ * <p>
  * 提供同步调用、流式调用和摘要标签生成功能。
  */
 @Slf4j
-//@Service
+@Service
 public class ChatService {
 
     private final ChatClient chatClient;
 
+    private final VectorStore pgVectorStore;
+
+    @Resource
+    private DocPermissionRepository docPermissionRepository;
+    @Resource
+    private SecurityContextUtil securityContextUtil;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${agenthub.llm.chat-model:deepseek-chat}")
-    private String chatModel;
+    public ChatService(ChatModel dashscopeChatModel, ChatMemory databaseChatMemory, VectorStore pgVectorStore) {
 
-    public ChatService(ChatClient.Builder chatClientBuilder) {
-        this.chatClient = chatClientBuilder.build();
+        String systemPrompt = """
+                你是企业知识助手，仅依据以下参考资料回答问题；若资料不足以回答，请明确说明无法回答，不要编造。
+                请给出答案，并在引用处标注来源编号，如 [1]、[2]。
+                """;
+        this.chatClient = ChatClient.builder(dashscopeChatModel)
+                .defaultSystem(systemPrompt)
+                .defaultAdvisors(
+                        new MessageChatMemoryAdvisor(databaseChatMemory),
+                        new MyLoggerAdvisor(),
+                        new SensitiveWordAdvisor())
+                .build();
+        this.pgVectorStore = pgVectorStore;
     }
 
     /**
-     * 同步调用 DeepSeek 生成文本。
+     * 同步调用 LLM 生成文本。
      *
      * @param prompt 提示词
      * @return 生成的文本内容
@@ -43,19 +70,36 @@ public class ChatService {
         try {
             return chatClient.prompt(prompt).call().content();
         } catch (Exception e) {
-            log.error("DeepSeek chat call failed: {}", e.getMessage(), e);
+            log.error("LLM chat call failed: {}", e.getMessage(), e);
             throw new BusinessException(500, "LLM 调用失败: " + e.getMessage());
         }
     }
 
     /**
-     * 流式调用 DeepSeek，返回文本流。
+     * 流式调用 LLM，返回文本流。
      *
      * @param prompt 提示词
      * @return 文本内容的 Flux 流
      */
-    public Flux<String> chatStream(String prompt) {
-        return chatClient.prompt(prompt).stream().content();
+    public Flux<String> chatStream(String question, String chatId) {
+
+        Long userId = securityContextUtil.getCurrentUserId();
+        String userRole = securityContextUtil.getCurrentUserRole().getCode();
+
+        Flux<String> response = chatClient.prompt()
+                .user(question)
+                .advisors(spec -> spec
+                        .param(MessageChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)
+                        .param(MessageChatMemoryAdvisor.CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
+                // 从pgsql向量库中检索内容
+                .advisors(
+                        new RagAdvisorService(pgVectorStore, userId + "", userRole, docPermissionRepository)
+                                .getAdvisor()
+                )
+                .stream()
+                .content();
+        return response;
+
     }
 
     /**
@@ -130,7 +174,6 @@ public class ChatService {
         // 降级：使用文本前 200 字作为摘要
         return new LlmSummaryResult(
                 originalText.substring(0, Math.min(200, originalText.length())),
-                new String[0]
-        );
+                new String[0]);
     }
 }

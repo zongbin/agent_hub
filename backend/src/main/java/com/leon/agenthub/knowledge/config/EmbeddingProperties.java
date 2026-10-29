@@ -4,10 +4,10 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 灵积平台 Embedding 配置 — 绑定 `agethub.embedding.*` 前缀。
+ * 灵积平台 Embedding 配置 — 绑定 `agenthub.embedding.*` 前缀。
  */
 @Data
-@ConfigurationProperties(prefix = "agethub.embedding")
+@ConfigurationProperties(prefix = "agenthub.embedding")
 public class EmbeddingProperties {
 
     /** 灵积平台 API 基础地址 */

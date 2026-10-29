@@ -1,6 +1,7 @@
 package com.leon.agenthub.auth.service;
 
 import com.leon.agenthub.auth.dto.LoginRequest;
+import com.leon.agenthub.auth.enums.UserStatus;
 import com.leon.agenthub.auth.dto.LoginResponse;
 import com.leon.agenthub.auth.dto.UserInfo;
 import com.leon.agenthub.auth.model.User;
@@ -36,7 +37,7 @@ public class AuthService {
                 .orElseThrow(() -> new BusinessException(401, "用户名或密码错误"));
 
         // 2. 校验账号状态
-        if (user.getStatus() == null || user.getStatus() != 1) {
+        if (!UserStatus.isEnabled(user.getStatus())) {
             throw new BusinessException(403, "账号已被禁用");
         }
 

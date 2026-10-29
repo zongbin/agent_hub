@@ -27,6 +27,11 @@ public interface DocPermissionRepository extends JpaRepository<DocPermission, Lo
     List<DocPermission> findByGranteeId(Long granteeId);
 
     /**
+     * 判断用户是否对指定文档拥有授权（任一权限类型均视为可读）。
+     */
+    boolean existsByDocumentIdAndGranteeId(Long documentId, Long granteeId);
+
+    /**
      * 查询文档的授权列表。
      */
     List<DocPermission> findByDocumentId(Long documentId);

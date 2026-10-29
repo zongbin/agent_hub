@@ -14,8 +14,8 @@ const query = reactive({
 })
 
 const pagination = reactive({
-  pageNum: 1,
-  pageSize: 20
+  page: 1,
+  size: 20
 })
 
 const actionTypeOptions = [
@@ -79,8 +79,8 @@ async function fetchLogs() {
   loading.value = true
   try {
     const params: any = {
-      pageNum: pagination.pageNum,
-      pageSize: pagination.pageSize
+      page: pagination.page,
+      size: pagination.size
     }
     if (query.userId) params.userId = query.userId
     if (query.dateRange && query.dateRange.length === 2) {
@@ -88,7 +88,7 @@ async function fetchLogs() {
       params.endTime = query.dateRange[1]
     }
     const result = await permissionApi.queryAuditLogs(params)
-    logs.value = result.records
+    logs.value = result.list
     total.value = result.total
   } catch {
     // 演示数据
@@ -100,7 +100,7 @@ async function fetchLogs() {
 }
 
 function handleSearch() {
-  pagination.pageNum = 1
+  pagination.page = 1
   fetchLogs()
 }
 
@@ -108,18 +108,18 @@ function handleReset() {
   query.userId = undefined
   query.dateRange = []
   query.actionType = ''
-  pagination.pageNum = 1
+  pagination.page = 1
   fetchLogs()
 }
 
 function handlePageChange(page: number) {
-  pagination.pageNum = page
+  pagination.page = page
   fetchLogs()
 }
 
 function handleSizeChange(size: number) {
-  pagination.pageSize = size
-  pagination.pageNum = 1
+  pagination.size = size
+  pagination.page = 1
   fetchLogs()
 }
 
@@ -251,8 +251,8 @@ onMounted(() => {
       <!-- 分页 -->
       <div v-if="total > 0" class="pagination-wrapper">
         <el-pagination
-          v-model:current-page="pagination.pageNum"
-          v-model:page-size="pagination.pageSize"
+          v-model:current-page="pagination.page"
+          v-model:page-size="pagination.size"
           :total="total"
           :page-sizes="[10, 20, 50, 100]"
           layout="total, sizes, prev, pager, next, jumper"

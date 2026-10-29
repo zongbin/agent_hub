@@ -4,18 +4,8 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
-  # Spring AI — 模型调用与向量存储
+  # Spring AI — 模型调用（阿里云百炼 DashScope）
   ai:
-    # DeepSeek 对话模型（OpenAI 兼容协议）
-    openai:
-      base-url: ${LLM_BASE_URL:https://api.deepseek.com}
-      api-key: ${LLM_API_KEY:}
-      chat:
-        options:
-          model: deepseek-chat
-          temperature: 0.7
-          max-tokens: 4096
-    # DashScope 灵积平台 Embedding
     dashscope:
       api-key: ${DASHSCOPE_API_KEY:}
       embedding:
@@ -86,9 +76,7 @@ agenthub:
     # 本地文件系统存储，后续迁移到 MinIO / S3 时替换实现
     root-path: ${STORAGE_ROOT_PATH:./data/docs}
   llm:
-    base-url: ${LLM_BASE_URL:https://api.deepseek.com}
-    api-key: ${LLM_API_KEY:}
-    chat-model: deepseek-chat
+    chat-model: qwen-plus
   embedding:
     # 灵积平台（DashScope）通用文本向量接口
     base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com}
@@ -105,6 +93,11 @@ agenthub:
   chunk:
     size: 512
     overlap: 50
+  qa:
+    top-k: 5              # 检索返回的分块数
+    snippet-length: 500   # 前端展示的引用片段长度
+    history-size: 6       # 携带进 prompt 的历史消息条数
+    history-msg-length: 200  # 历史消息在 prompt 中的截断长度
 
 # Knife4j / OpenAPI 文档
 springdoc:

@@ -13,6 +13,92 @@ Interactive prototype: `doc/产品文档/企业知识管理Agent_原型_MVP.html
 ## Code Conventions
 
 - **Java file naming**: 所有 Java 文件名必须使用**驼峰命名法（CamelCase）**，例如 `BusinessException.java`、`GlobalExceptionHandler.java`、`AgentHubApplication.java`。禁止使用下划线、连字符或全小写拼写（如 `business_exception.java` 是错误的）。此规则适用于本项目及所有后续 Java 项目。
+- **状态常量一律用枚举类**：所有状态/类型常量必须定义在 `enums` 包下的枚举类里，禁止在代码、SQL 参数、接口出参中出现 `"PROCESSING"` 这类字符串字面量或 `0/1/2` 魔法数字。
+  - 已有枚举：文档处理状态 `knowledge/enums/DocumentStatus`（PROCESSING / ACTIVE / FAILED / DELETED）、用户账号状态 `auth/enums/UserStatus`（ENABLED / DISABLED）、角色与密级 `permission/enums/UserRole`、`permission/enums/SecurityLevel`。
+  - 约定：**枚举名即接口与前端使用的字符串**（Jackson 按枚举名序列化）；`code` 为数据库存储值，`label` 为中文标签。
+  - 实体层保留数据库列的数值字段（如 `Document.statusCode`），并提供枚举读写方法（`getStatus()` / `setStatus(DocumentStatus)`），业务代码只操作枚举。
+  - 查询参数直接用枚举类型接收（如 `DocumentQuery.status`），前端传枚举名；服务层负责转成 `code` 传给 Repository。
+
+## 分层与事务规约（强制）
+
+### 各层职责
+
+| 层 | 允许做 | 禁止做 |
+|----|--------|--------|
+| **Controller**（`*/controller/`） | 接收并绑定 DTO 参数、调用 Service、包装 `R` 响应 | 注入 Repository、写业务判断、拼装 VO/Map 业务结构、开事务 |
+| **Service**（`*/service/`） | 全部业务逻辑、权限判定、事务边界、编排多个 Repository | 把事务边界下放到 Controller |
+| **Repository**（`*/repository/`） | 数据访问、声明式查询 | 业务判断、跨表编排 |
+| **Converter**（`*/converter/`） | 实体 ↔ DTO/VO 映射 | 访问数据库、抛业务异常 |
+
+细则：
+
+- Controller 里**禁止出现业务代码**：不查库、不判断权限、不做状态流转、不手写 `HashMap` 拼装领域结果；实体转换统一放到 `converter/`（如 `DocumentConverter.toVO`）。
+- 业务异常一律抛 `BusinessException` / 领域异常，由 `GlobalExceptionHandler` 统一转成 `R.fail(code, message)`；Service 与 Controller 都**不要 `return R.fail(...)`**（`R` 只用于 Controller 出参）。
+- `@RequirePermission` 标在 **Service 方法**上（与注解自身文档一致），Controller 不重复标注。
+
+### 事务规约
+
+- **事务边界只在 Service 方法上声明**：`@Transactional(rollbackFor = Exception.class)`；纯查询可用 `@Transactional(readOnly = true)`。
+- **Controller 上严禁标注 `@Transactional`**：自调用/非 Spring 代理调用会让事务失效，且事务语义应属于业务层。
+- 一次业务操作的**多步写库必须在同一个事务方法内完成**，禁止拆到多个方法或散落在 Controller 里。例如「软删除文档 + 清理 `vector_store` 分块」必须原子完成，任一步失败整体回滚，避免出现「文档已标记删除但仍能被检索命中」的中间态。
+- 事务方法内**不要做不可回滚的外部副作用**：发 HTTP、调用 LLM、写 MinIO、启动异步任务等。应放在事务提交之后（`@TransactionalEventListener(phase = AFTER_COMMIT)`、或由事件监听器异步处理）。
+- **禁止自调用依赖事务**：同类内部方法直接调用不经过代理，`@Transactional` 失效；需要独立事务时拆到另一个 Bean。
+- 跨表一致性依赖数据库事务，而非「先删 A 再删 B」的手工补偿顺序。
+
+### 分页查询规约
+
+- **所有分页查询参数 DTO 必须继承 `com.leon.agenthub.common.dto.PageQuery`**：统一 `page`（从 1 开始）、`size`（默认 20，上限 200），并提供 `getPageIndex()` / `getPageSize()` / `toPageRequest(sort)`。
+- Service 层统一用 `query.getPageIndex()`、`query.getPageSize()` 或 `query.toPageRequest(sort)` 构造 `PageRequest`，**禁止各处手写 `page - 1`**（越界、空值都要在基类里兜住）。
+- 分页响应统一为 `{list, total, page, size}`（如文档列表、审计日志），**不要直接把 Spring 的 `Page` 对象作为响应体**（序列化结构不稳定，且与前端约定不一致）。
+- 前端分页参数命名统一为 `page` / `size`，与后端 `PageQuery` 保持一致。
+
+```java
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class DocumentQuery extends PageQuery {
+    private String securityLevel;
+}
+```
+
+### 正反例
+
+反例（业务写在 Controller + 事务缺失）：
+
+```java
+@DeleteMapping("/{id}")
+public R<Void> delete(@PathVariable Long id) {
+    Document doc = documentRepository.findById(id).orElse(null);        // Controller 注入 Repository
+    if (doc == null) return R.fail(404, "文档不存在");                   // 业务判断写在 Controller
+    if (!documentAccessChecker.canAccess(...)) return R.fail(403, "…");   // 权限判定写在 Controller
+    doc.setDeleted(1);
+    documentRepository.save(doc);                                       // 无事务：save 与下一行不在同一事务
+    vectorStoreService.deleteByDocumentId(id);
+    return R.ok();
+}
+```
+
+正例（业务与事务下沉到 Service）：
+
+```java
+// Controller —— 只做转发与包装
+@DeleteMapping("/{id}")
+public R<Void> delete(@PathVariable Long id) {
+    documentService.delete(id);
+    return R.ok();
+}
+
+// Service —— 业务逻辑 + 事务边界
+@Transactional(rollbackFor = Exception.class)
+@RequirePermission(resource = "DOCUMENT", action = "WRITE")
+public void delete(Long id) {
+    Document doc = documentRepository.findById(id)
+            .orElseThrow(() -> new BusinessException(404, "文档不存在"));
+    checkAccess(doc);
+    doc.setDeleted(1);
+    documentRepository.save(doc);
+    vectorStoreService.deleteByDocumentId(id);   // 与软删除同一事务，失败整体回滚
+}
+```
 
 ## Tech Stack
 

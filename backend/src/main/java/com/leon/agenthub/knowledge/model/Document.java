@@ -1,6 +1,7 @@
 package com.leon.agenthub.knowledge.model;
 
 import jakarta.persistence.*;
+import com.leon.agenthub.knowledge.enums.DocumentStatus;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -61,9 +62,9 @@ public class Document implements Serializable {
     @Column(name = "tags", columnDefinition = "text[]")
     private String[] tags;
 
-    /** 状态：1 正常 0 删除 2 处理中 */
-    @Column(nullable = false)
-    private Integer status;
+    /** 处理状态 code（取值见 {@link DocumentStatus}） */
+    @Column(name = "status", nullable = false)
+    private Integer statusCode;
 
     /** 分块数量 */
     @Column(name = "chunk_count")
@@ -83,4 +84,22 @@ public class Document implements Serializable {
 
     @Column(nullable = false)
     private Integer deleted = 0;
+
+    /**
+     * 处理状态（枚举）。
+     *
+     * @return 由 statusCode 解析出的状态
+     */
+    public DocumentStatus getStatus() {
+        return DocumentStatus.fromCode(statusCode);
+    }
+
+    /**
+     * 设置处理状态（枚举）。
+     *
+     * @param status 目标状态
+     */
+    public void setStatus(DocumentStatus status) {
+        this.statusCode = status == null ? null : status.getCode();
+    }
 }

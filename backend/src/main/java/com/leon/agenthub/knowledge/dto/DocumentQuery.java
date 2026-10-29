@@ -1,20 +1,18 @@
 package com.leon.agenthub.knowledge.dto;
 
+import com.leon.agenthub.common.dto.PageQuery;
+import com.leon.agenthub.knowledge.enums.DocumentStatus;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.io.Serializable;
 
 /**
- * 文档查询条件 DTO — 分页列表查询参数。
+ * 文档查询条件 DTO — 继承通用分页基类 {@link PageQuery}。
  */
 @Data
-public class DocumentQuery implements Serializable {
-
-    /** 页码（从 1 开始） */
-    private Integer page = 1;
-
-    /** 每页条数 */
-    private Integer size = 20;
+@EqualsAndHashCode(callSuper = true)
+public class DocumentQuery extends PageQuery implements Serializable {
 
     /** 按密级筛选 */
     private String securityLevel;
@@ -22,6 +20,6 @@ public class DocumentQuery implements Serializable {
     /** 按标签筛选 */
     private String tag;
 
-    /** 按状态筛选 */
-    private Integer status;
+    /** 按状态筛选（枚举名，如 PROCESSING / ACTIVE / FAILED） */
+    private DocumentStatus status;
 }

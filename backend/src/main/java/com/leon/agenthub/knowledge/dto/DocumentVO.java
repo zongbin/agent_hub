@@ -1,5 +1,6 @@
 package com.leon.agenthub.knowledge.dto;
 
+import com.leon.agenthub.knowledge.enums.DocumentStatus;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -35,8 +36,8 @@ public class DocumentVO implements Serializable {
     /** AI 生成标签 */
     private String[] tags;
 
-    /** 处理状态：PROCESSING / ACTIVE / FAILED */
-    private String status;
+    /** 处理状态（枚举，JSON 中为枚举名：PROCESSING / ACTIVE / FAILED / DELETED） */
+    private DocumentStatus status;
 
     /** 分块数量 */
     private Integer chunkCount;

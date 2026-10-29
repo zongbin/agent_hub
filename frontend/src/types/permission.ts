@@ -72,11 +72,11 @@ export interface RevokePermissionRequest {
   userId: number
 }
 
-/** 审计日志查询参数 */
+/** 审计日志查询参数（分页字段与后端 PageQuery 保持一致：page 从 1 开始） */
 export interface AuditLogQueryParams {
   userId?: number
   startTime?: string
   endTime?: string
-  pageNum: number
-  pageSize: number
+  page: number
+  size: number
 }

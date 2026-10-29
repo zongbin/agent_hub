@@ -3,8 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadInstance } from 'element-plus'
-import axios from 'axios'
-import { knowledgeApi, type DocumentVO, type DocumentListResponse } from '@/api/knowledge'
+import { knowledgeApi, type DocumentStatus, type DocumentVO } from '@/api/knowledge'
 
 const router = useRouter()
 const uploadRef = ref<UploadInstance>()
@@ -13,7 +12,7 @@ const documents = ref<DocumentVO[]>([])
 
 const searchKey = ref('')
 const filterSecurity = ref('')
-const filterStatus = ref('')
+const filterStatus = ref<'' | DocumentStatus>('')
 
 const pagination = reactive({
   page: 1,
@@ -32,7 +31,7 @@ const form = reactive({
 const selectedFile = ref<File | null>(null)
 const dialogVisible = ref(false)
 
-const statusOptions = [
+const statusOptions: Array<{ label: string; value: '' | DocumentStatus }> = [
   { label: '全部', value: '' },
   { label: '处理中', value: 'PROCESSING' },
   { label: '已就绪', value: 'ACTIVE' },
@@ -54,7 +53,7 @@ const loadDocuments = async () => {
       page: pagination.page,
       size: pagination.size,
       securityLevel: filterSecurity.value || undefined,
-      status: filterStatus.value ? statusValueToInt(filterStatus.value) : undefined
+      status: filterStatus.value || undefined
     })
     documents.value = res.list ?? []
     pagination.total = res.total ?? 0
@@ -64,16 +63,6 @@ const loadDocuments = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const statusValueToInt = (status: string): number | undefined => {
-  const map: Record<string, number> = { PROCESSING: 2, ACTIVE: 1, FAILED: 0 }
-  return map[status]
-}
-
-const statusToInt = (status: string): number => {
-  const map: Record<string, number> = { PROCESSING: 2, ACTIVE: 1, FAILED: 0, DELETED: 0 }
-  return map[status] ?? 1
 }
 
 /** 搜索 */

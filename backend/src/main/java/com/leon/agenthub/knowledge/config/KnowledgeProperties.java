@@ -4,10 +4,10 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 知识库模块配置 — 绑定 `agethub.chunk.*` 和 `agethub.storage.*` 前缀。
+ * 知识库模块配置 — 绑定 `agenthub.chunk.*` 和 `agenthub.storage.*` 前缀。
  */
 @Data
-@ConfigurationProperties(prefix = "agethub")
+@ConfigurationProperties(prefix = "agenthub")
 public class KnowledgeProperties {
 
     /** 分块配置 */

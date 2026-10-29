@@ -56,10 +56,10 @@ export const permissionApi = {
 
   /** 查询审计日志 */
   queryAuditLogs(params: AuditLogQueryParams): Promise<{
-    records: AuditLogItem[]
+    list: AuditLogItem[]
     total: number
-    pageNum: number
-    pageSize: number
+    page: number
+    size: number
   }> {
     return request.get('/permissions/audit-logs', { params })
   }
