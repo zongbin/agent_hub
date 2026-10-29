@@ -33,3 +33,4 @@ frontend_vite.log
 *.pem
 *.key
 application-dev.yml
+application-prod.yml
