@@ -18,6 +18,16 @@ export interface DocumentVO {
   createdAt: string
 }
 
+/** 文档分块 */
+export interface DocumentChunk {
+  /** 分块序号（从 0 开始） */
+  chunkIndex: number
+  /** 分块文本内容 */
+  content: string
+  /** 分块字符数 */
+  charCount: number
+}
+
 /** 文档上传请求元信息 */
 export interface DocumentUploadRequest {
   title?: string
@@ -71,6 +81,13 @@ export const knowledgeApi = {
    */
   detail(id: number): Promise<DocumentVO> {
     return request.get(`/documents/${id}`)
+  },
+
+  /**
+   * 查询文档的分块内容。
+   */
+  chunks(id: number): Promise<DocumentChunk[]> {
+    return request.get(`/documents/${id}/chunks`)
   },
 
   /**

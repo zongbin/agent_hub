@@ -1,8 +1,10 @@
 package com.leon.agenthub.knowledge.converter;
 
+import com.leon.agenthub.knowledge.dto.DocumentChunkVO;
 import com.leon.agenthub.knowledge.dto.DocumentVO;
 import com.leon.agenthub.knowledge.enums.DocumentStatus;
 import com.leon.agenthub.knowledge.model.Document;
+import com.leon.agenthub.knowledge.model.DocumentChunk;
 
 /**
  * 文档转换器 — 实体与视图对象之间的映射。
@@ -33,6 +35,20 @@ public final class DocumentConverter {
         vo.setChunkCount(doc.getChunkCount());
         vo.setCreatedAt(doc.getCreatedAt());
         vo.setStatus(resolveStatus(doc));
+        return vo;
+    }
+
+    /**
+     * 分块实体转 VO。
+     *
+     * @param chunk 分块
+     * @return 分块视图对象
+     */
+    public static DocumentChunkVO toChunkVO(DocumentChunk chunk) {
+        DocumentChunkVO vo = new DocumentChunkVO();
+        vo.setChunkIndex(chunk.getChunkIndex());
+        vo.setContent(chunk.getContent() == null ? "" : chunk.getContent());
+        vo.setCharCount(vo.getContent().length());
         return vo;
     }
 

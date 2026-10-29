@@ -4,9 +4,11 @@ import com.leon.agenthub.audit.annotation.AuditLog;
 import com.leon.agenthub.auth.security.SecurityContextUtil;
 import com.leon.agenthub.common.exception.BusinessException;
 import com.leon.agenthub.knowledge.converter.DocumentConverter;
+import com.leon.agenthub.knowledge.dto.DocumentChunkVO;
 import com.leon.agenthub.knowledge.dto.DocumentQuery;
 import com.leon.agenthub.knowledge.dto.DocumentVO;
 import com.leon.agenthub.knowledge.model.Document;
+import com.leon.agenthub.knowledge.repository.DocumentChunkRepository;
 import com.leon.agenthub.knowledge.repository.DocumentRepository;
 import com.leon.agenthub.permission.annotation.RequirePermission;
 import com.leon.agenthub.permission.service.DocumentAccessChecker;
@@ -16,6 +18,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * 文档管理服务 — 文档列表、详情、删除等业务逻辑。
@@ -31,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
+    private final DocumentChunkRepository documentChunkRepository;
     private final SecurityContextUtil securityContextUtil;
     private final DocumentAccessChecker documentAccessChecker;
     private final VectorStoreService vectorStoreService;
@@ -70,6 +75,23 @@ public class DocumentService {
 
         checkAccess(document, "访问");
         return DocumentConverter.toVO(document);
+    }
+
+    /**
+     * 查询文档的分块内容（按分块序号升序）。
+     *
+     * @param id 文档 ID
+     * @return 分块视图列表
+     */
+    @RequirePermission(resource = "DOCUMENT", action = "READ")
+    public List<DocumentChunkVO> listChunks(Long id) {
+        Document document = documentRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(404, "文档不存在"));
+
+        checkAccess(document, "查看分块");
+        return documentChunkRepository.findByDocumentId(id).stream()
+                .map(DocumentConverter::toChunkVO)
+                .toList();
     }
 
     /**

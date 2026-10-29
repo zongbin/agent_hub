@@ -6,6 +6,10 @@ spring:
 
   # Spring AI — 模型调用（阿里云百炼 DashScope）
   ai:
+    # 重试策略：默认 10 次重试会把「欠费(Arrearage)/参数错误」这类 400 响应
+    # 放大成长时间卡顿，这里改为失败即返回，由调用方走降级逻辑
+    retry:
+      max-attempts: 1
     dashscope:
       api-key: ${DASHSCOPE_API_KEY:}
       embedding:
@@ -93,6 +97,13 @@ agenthub:
   chunk:
     size: 512
     overlap: 50
+  knowledge:
+    # 是否调用 LLM 生成关键词/摘要。关闭后文档仍可解析、分块、向量化入库，
+    # 只是没有关键词/摘要元信息（适合模型服务不可用或需要压低成本时）
+    enrich-with-llm: ${KNOWLEDGE_ENRICH_WITH_LLM:true}
+    # 调用 LLM 生成摘要的分块数量，其余分块复用首个分块的摘要。
+    # 1 = 只对首块调用一次 LLM（默认），分块越多越省时省钱
+    summary-chunks: ${KNOWLEDGE_SUMMARY_CHUNKS:1}
   qa:
     top-k: 5              # 检索返回的分块数
     snippet-length: 500   # 前端展示的引用片段长度

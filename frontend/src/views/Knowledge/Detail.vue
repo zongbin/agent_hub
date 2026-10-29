@@ -2,13 +2,17 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { knowledgeApi, type DocumentVO } from '@/api/knowledge'
+import { knowledgeApi, type DocumentChunk, type DocumentVO } from '@/api/knowledge'
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(true)
 const doc = ref<DocumentVO | null>(null)
+const chunks = ref<DocumentChunk[]>([])
+const chunksLoading = ref(false)
+/** 折叠面板当前展开的分块（手风琴模式，同一时刻只展开一个） */
+const activeChunks = ref<number | string>('')
 
 /** 加载文档详情 */
 const loadDetail = async () => {
@@ -21,6 +25,7 @@ const loadDetail = async () => {
       return
     }
     doc.value = await knowledgeApi.detail(id)
+    await loadChunks(id)
   } catch (error: unknown) {
     const err = error as { message?: string; response?: { status?: number } }
     if (err.response?.status === 404) {
@@ -33,6 +38,20 @@ const loadDetail = async () => {
     router.push('/knowledge')
   } finally {
     loading.value = false
+  }
+}
+
+/** 加载文档分块内容（仅已就绪的文档有分块） */
+const loadChunks = async (id: number) => {
+  chunks.value = []
+  chunksLoading.value = true
+  try {
+    chunks.value = await knowledgeApi.chunks(id)
+  } catch (error) {
+    // 分块加载失败不影响详情展示
+    console.warn('加载分块失败', error)
+  } finally {
+    chunksLoading.value = false
   }
 }
 
@@ -183,6 +202,36 @@ onMounted(() => {
           <el-skeleton v-else :rows="2" animated />
         </div>
 
+        <!-- 分块内容 -->
+        <div class="mb-4">
+          <h3 class="font-bold mb-2 text-sm text-slate-500">
+            <el-icon class="mr-1"><Files /></el-icon>
+            分块内容
+            <span v-if="chunks.length" class="font-normal text-slate-400">
+              （共 {{ chunks.length }} 块）
+            </span>
+          </h3>
+
+          <div v-loading="chunksLoading">
+            <el-empty v-if="!chunksLoading && chunks.length === 0" description="暂无分块内容" :image-size="60" />
+            <el-collapse v-else v-model="activeChunks" accordion>
+              <el-collapse-item
+                v-for="chunk in chunks"
+                :key="chunk.chunkIndex"
+                :name="chunk.chunkIndex"
+              >
+                <template #title>
+                  <div class="flex items-center gap-2 text-sm">
+                    <el-tag size="small" type="info" effect="plain">#{{ chunk.chunkIndex + 1 }}</el-tag>
+                    <span class="text-slate-400 text-xs">{{ chunk.charCount }} 字</span>
+                  </div>
+                </template>
+                <pre class="whitespace-pre-wrap font-sans text-sm text-slate-700 leading-relaxed m-0">{{ chunk.content }}</pre>
+              </el-collapse-item>
+            </el-collapse>
+          </div>
+        </div>
+
         <!-- 处理中提示 -->
         <el-alert
           v-if="doc.status === 'PROCESSING'"
@@ -218,5 +267,5 @@ onMounted(() => {
 </template>
 
 <script lang="ts">
-import { ArrowLeft, Refresh, Delete, MagicStick } from '@element-plus/icons-vue'
+import { ArrowLeft, Refresh, Delete, MagicStick, Files } from '@element-plus/icons-vue'
 </script>

@@ -37,6 +37,9 @@ public class ChatService {
 
     private final VectorStore pgVectorStore;
 
+    // 保存 ChatClient.Builder，供 RagAdvisorService 构建查询重写器使用
+    private final ChatClient.Builder chatClientBuilder;
+
     @Resource
     private DocPermissionRepository docPermissionRepository;
     @Resource
@@ -50,7 +53,8 @@ public class ChatService {
                 你是企业知识助手，仅依据以下参考资料回答问题；若资料不足以回答，请明确说明无法回答，不要编造。
                 请给出答案，并在引用处标注来源编号，如 [1]、[2]。
                 """;
-        this.chatClient = ChatClient.builder(dashscopeChatModel)
+        this.chatClientBuilder = ChatClient.builder(dashscopeChatModel);
+        this.chatClient = chatClientBuilder
                 .defaultSystem(systemPrompt)
                 .defaultAdvisors(
                         new MessageChatMemoryAdvisor(databaseChatMemory),
@@ -93,13 +97,31 @@ public class ChatService {
                         .param(MessageChatMemoryAdvisor.CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
                 // 从pgsql向量库中检索内容
                 .advisors(
-                        new RagAdvisorService(pgVectorStore, userId + "", userRole, docPermissionRepository)
+                        new RagAdvisorService(pgVectorStore, userId + "", userRole, docPermissionRepository, chatClientBuilder)
                                 .getAdvisor()
                 )
                 .stream()
                 .content();
-        return response;
+        // 把模型服务的原始异常（如账户欠费 Arrearage、限流）转成可读的业务异常
+        return response.onErrorMap(e -> {
+            log.error("LLM stream call failed: {}", e.getMessage(), e);
+            return new BusinessException(500, "模型服务调用失败：" + rootMessageOf(e));
+        });
+    }
 
+    /**
+     * 取异常链中最内层的可读信息（去掉 Spring AI 的层层包装）。
+     */
+    private String rootMessageOf(Throwable e) {
+        Throwable cause = e;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        String message = cause.getMessage();
+        if (message == null || message.isBlank()) {
+            return e.getClass().getSimpleName();
+        }
+        return message.length() > 300 ? message.substring(0, 300) : message;
     }
 
     /**

@@ -82,6 +82,31 @@ public class VectorStoreService {
         log.debug("Deleted vector_store entries for document {}", documentId);
     }
 
+    /**
+     * 查找用户被单独授权的文档 ID（doc_permissions 中按用户授权的记录）。
+     */
+    private List<Long> loadGrantedDocumentIds(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        return docPermissionRepository.findByGranteeId(userId).stream()
+                .map(DocPermission::getDocumentId)
+                .distinct()
+                .toList();
+    }
 
-   
+    /**
+     * 构造「角色×密级 + 文档级授权」的过滤表达式。
+     */
+    private Filter.Expression buildFilter(String userRole, List<Long> grantedIds) {
+        FilterExpressionBuilder b = new FilterExpressionBuilder();
+        FilterExpressionBuilder.Op roleFilter = switch (userRole) {
+            case "GUEST" -> b.in("securityLevel", "PUBLIC");
+            default -> b.in("securityLevel", "PUBLIC", "INTERNAL");
+        };
+        if (grantedIds.isEmpty()) {
+            return roleFilter.build();
+        }
+        return b.or(roleFilter, b.in("documentId", grantedIds.toArray())).build();
+    }
 }

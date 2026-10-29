@@ -1,6 +1,7 @@
 package com.leon.agenthub.knowledge.controller;
 
 import com.leon.agenthub.common.response.R;
+import com.leon.agenthub.knowledge.dto.DocumentChunkVO;
 import com.leon.agenthub.knowledge.dto.DocumentQuery;
 import com.leon.agenthub.knowledge.dto.DocumentUploadRequest;
 import com.leon.agenthub.knowledge.dto.DocumentVO;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -69,6 +71,14 @@ public class DocumentController {
     @GetMapping("/{id}")
     public R<DocumentVO> detail(@PathVariable Long id) {
         return R.ok(documentService.detail(id));
+    }
+
+    /**
+     * 查询文档的分块内容。
+     */
+    @GetMapping("/{id}/chunks")
+    public R<List<DocumentChunkVO>> chunks(@PathVariable Long id) {
+        return R.ok(documentService.listChunks(id));
     }
 
     /**
