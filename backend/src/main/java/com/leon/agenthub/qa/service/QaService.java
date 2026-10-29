@@ -20,6 +20,7 @@ import reactor.core.publisher.Flux;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 问答服务 — 编排会话、检索、多轮上下文与 LLM 流式生成。
@@ -52,7 +53,7 @@ public class QaService {
      * @param userRole       当前用户角色代码
      * @return 问答结果（含会话 ID、引用来源与答案流）
      */
-    public QaResult ask(String question, Long conversationId, Long userId, String userRole) {
+    public QaResult ask(String question, String conversationId, Long userId, String userRole) {
         // 新增or 获取 对话信息
         Conversation conversation = resolveConversation(conversationId, question, userId);
 
@@ -60,14 +61,14 @@ public class QaService {
 
         List<QaSource> sources = new ArrayList<>();
 
-        Flux<String> stream = chatService.chatStream(question, conversation.getId().toString());
+        Flux<String> stream = chatService.chatStream(question, conversation.getId());
         return new QaResult(conversation.getId(), sources, stream);
     }
 
     /**
      * 流式完成后保存回答消息，返回消息 ID（供反馈使用）。
      */
-    public Long saveAssistantMessage(Long conversationId, String answer, List<QaSource> sources) {
+    public Long saveAssistantMessage(String conversationId, String answer, List<QaSource> sources) {
         Long messageId = saveMessage(conversationId, "assistant", answer, serializeSources(sources));
         conversationRepository.findById(conversationId).ifPresent(this::touchConversation);
         return messageId;
@@ -95,7 +96,7 @@ public class QaService {
     /**
      * 查询某会话的消息列表。
      */
-    public List<MessageVO> listMessages(Long conversationId, Long userId) {
+    public List<MessageVO> listMessages(String conversationId, Long userId) {
         Conversation conversation = requireOwnedConversation(conversationId, userId);
         return messageRepository.findByConversationIdOrderByIdAsc(conversation.getId()).stream()
                 .map(this::toMessageVO)
@@ -105,17 +106,18 @@ public class QaService {
     /**
      * 删除会话及其消息。
      */
-    public void deleteConversation(Long conversationId, Long userId) {
+    public void deleteConversation(String conversationId, Long userId) {
         Conversation conversation = requireOwnedConversation(conversationId, userId);
         messageRepository.deleteByConversationId(conversation.getId());
         conversationRepository.delete(conversation);
     }
 
-    private Conversation resolveConversation(Long conversationId, String question, Long userId) {
-        if (conversationId != null) {
+    private Conversation resolveConversation(String conversationId, String question, Long userId) {
+        if (conversationId != null && !conversationId.isBlank()) {
             return requireOwnedConversation(conversationId, userId);
         }
         Conversation conversation = new Conversation();
+        conversation.setId(UUID.randomUUID().toString());
         conversation.setUserId(userId);
         conversation.setTitle(truncate(question, 30));
         return conversationRepository.save(conversation);
@@ -125,7 +127,7 @@ public class QaService {
         conversationRepository.save(conversation);
     }
 
-    private Conversation requireOwnedConversation(Long conversationId, Long userId) {
+    private Conversation requireOwnedConversation(String conversationId, Long userId) {
         Conversation conversation = conversationRepository.findById(conversationId).orElse(null);
         if (conversation == null || !conversation.getUserId().equals(userId)) {
             throw new BusinessException(404, "会话不存在");
@@ -133,7 +135,7 @@ public class QaService {
         return conversation;
     }
 
-    private Long saveMessage(Long conversationId, String role, String content, String sources) {
+    private Long saveMessage(String conversationId, String role, String content, String sources) {
         ChatMemoryMessage message = new ChatMemoryMessage();
         message.setConversationId(conversationId);
         message.setRole(role.toUpperCase());
@@ -164,7 +166,7 @@ public class QaService {
     private MessageVO toMessageVO(ChatMemoryMessage message) {
         MessageVO vo = new MessageVO();
         vo.setId(message.getId());
-        vo.setRole(message.getRole());
+        vo.setRole(message.getRole() == null ? null : message.getRole().toLowerCase());
         vo.setContent(message.getContent());
         vo.setSources(deserializeSources(message.getSources()));
         vo.setFeedback(message.getFeedback());
@@ -221,6 +223,6 @@ public class QaService {
      * @param sources        引用来源
      * @param stream         答案文本流
      */
-    public record QaResult(Long conversationId, List<QaSource> sources, Flux<String> stream) {
+    public record QaResult(String conversationId, List<QaSource> sources, Flux<String> stream) {
     }
 }

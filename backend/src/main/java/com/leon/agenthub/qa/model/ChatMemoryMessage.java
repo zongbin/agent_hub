@@ -26,9 +26,9 @@ public class ChatMemoryMessage implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 所属会话 ID */
-    @Column(name = "conversation_id", nullable = false)
-    private Long conversationId;
+    /** 所属会话 ID（存储 Spring AI 的字符串 conversationId） */
+    @Column(name = "conversation_id", nullable = false, length = 64)
+    private String conversationId;
 
     /** 角色：user / assistant */
     @Column(nullable = false, length = 16)

@@ -2,8 +2,6 @@ package com.leon.agenthub.qa.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
@@ -21,9 +19,10 @@ import java.time.OffsetDateTime;
 @Table(name = "qa_conversations")
 public class Conversation implements Serializable {
 
+    /** 会话 ID（UUID 字符串，由应用生成） */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", nullable = false, length = 64)
+    private String id;
 
     /** 所属用户 ID */
     @Column(name = "user_id", nullable = false)

@@ -20,7 +20,7 @@ const messages = ref<ChatMessage[]>([])
 const input = ref('')
 const loading = ref(false)
 const conversations = ref<Conversation[]>([])
-const currentConversationId = ref<number | null>(null)
+const currentConversationId = ref<string | null>(null)
 const sidebarVisible = ref(true)
 
 /** 加载会话列表 */

@@ -2,8 +2,12 @@ package com.leon.agenthub.qa.rag;
 
 import java.util.List;
 
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.RetrievalAugmentationAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
+import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.rag.preretrieval.query.transformation.QueryTransformer;
+import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
 import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
@@ -20,12 +24,12 @@ public class RagAdvisorService {
     private final Advisor ragAdvisor; // 关键：类型改为 Spring AI 的 Advisor
 
     public RagAdvisorService(VectorStore vectorStore, String userId, String userRole,
-            DocPermissionRepository docPermissionRepository) {
-        this(vectorStore, userId, userRole, docPermissionRepository, 5);
+            DocPermissionRepository docPermissionRepository, ChatClient.Builder chatClientBuilder) {
+        this(vectorStore, userId, userRole, docPermissionRepository, chatClientBuilder, 5);
     }
 
     public RagAdvisorService(VectorStore vectorStore, String userId, String userRole,
-            DocPermissionRepository docPermissionRepository, int topK) {
+            DocPermissionRepository docPermissionRepository, ChatClient.Builder chatClientBuilder, int topK) {
 
         this.docPermissionRepository = docPermissionRepository;
 
@@ -48,8 +52,20 @@ public class RagAdvisorService {
             builder.filterExpression(filterExpr);
         }
 
-        // 关键：构建真正的 RetrievalAugmentationAdvisor，赋值给 Advisor 类型字段
+        PromptTemplate customTemplate = new PromptTemplate("""
+                将以下用户查询改写为适合在 {target} 中检索的形式。
+                保留核心关键词，去除口语化和无关信息。
+                原始查询：{query}
+                改写后的查询：
+                """);
+        // 查询重写
+        QueryTransformer queryTransformer = RewriteQueryTransformer.builder()
+                .chatClientBuilder(chatClientBuilder)
+                .promptTemplate(customTemplate)
+                .build();
+
         this.ragAdvisor = RetrievalAugmentationAdvisor.builder()
+                .queryTransformers(queryTransformer)
                 .documentRetriever(builder.build())
                 .build();
     }

@@ -16,7 +16,9 @@ public class KnowledgeRetriever {
 
     private final VectorStoreService vectorStoreService;
 
-   
+    /** 检索返回的分块数 */
+    @Value("${agenthub.qa.top-k:5}")
+    private int topK;
 
     /**
      * 检索与问题最相关的分块。

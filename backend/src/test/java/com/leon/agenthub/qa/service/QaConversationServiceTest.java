@@ -5,21 +5,18 @@ import com.leon.agenthub.common.exception.BusinessException;
 import com.leon.agenthub.common.llm.ChatService;
 import com.leon.agenthub.qa.dto.ConversationVO;
 import com.leon.agenthub.qa.dto.MessageVO;
+import com.leon.agenthub.qa.model.ChatMemoryMessage;
 import com.leon.agenthub.qa.model.Conversation;
-import com.leon.agenthub.qa.model.Message;
+import com.leon.agenthub.qa.repository.ChatMemoryMessageRepository;
 import com.leon.agenthub.qa.repository.ConversationRepository;
-import com.leon.agenthub.qa.repository.MessageRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.document.Document;
 import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Flux;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -33,22 +30,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link QaService} 会话管理单元测试 — 覆盖会话创建/复用、多轮上下文、消息持久化与删除。
+ * {@link QaService} 会话管理单元测试 — 覆盖会话创建/复用、消息持久化与删除。
  *
- * <p>全部使用 mock，不触发外部 LLM 调用。
+ * <p>会话 ID 为 UUID 字符串（qa_conversations.id / qa_messages.conversation_id 均为 VARCHAR(64)）。
  */
 class QaConversationServiceTest {
 
     private KnowledgeRetriever knowledgeRetriever;
     private ChatService chatService;
     private ConversationRepository conversationRepository;
-    private MessageRepository messageRepository;
+    private ChatMemoryMessageRepository messageRepository;
     private QaService qaService;
 
     /** 模拟持久化的会话与消息 */
     private final List<Conversation> conversations = new ArrayList<>();
-    private final List<Message> messages = new ArrayList<>();
-    private long conversationSeq = 0;
+    private final List<ChatMemoryMessage> messages = new ArrayList<>();
     private long messageSeq = 0;
 
     @BeforeEach
@@ -56,7 +52,7 @@ class QaConversationServiceTest {
         knowledgeRetriever = mock(KnowledgeRetriever.class);
         chatService = mock(ChatService.class);
         conversationRepository = mock(ConversationRepository.class);
-        messageRepository = mock(MessageRepository.class);
+        messageRepository = mock(ChatMemoryMessageRepository.class);
         qaService = new QaService(knowledgeRetriever, chatService, conversationRepository,
                 messageRepository, new ObjectMapper());
         ReflectionTestUtils.setField(qaService, "snippetLength", 500);
@@ -65,22 +61,21 @@ class QaConversationServiceTest {
 
         conversations.clear();
         messages.clear();
-        conversationSeq = 0;
         messageSeq = 0;
 
         when(conversationRepository.save(any(Conversation.class))).thenAnswer(inv -> {
             Conversation c = inv.getArgument(0);
             if (c.getId() == null) {
-                c.setId(++conversationSeq);
-                c.setCreatedAt(OffsetDateTime.now());
-                c.setUpdatedAt(OffsetDateTime.now());
-                conversations.add(c);
+                c.setId(java.util.UUID.randomUUID().toString());
             }
+            c.setCreatedAt(OffsetDateTime.now());
+            c.setUpdatedAt(OffsetDateTime.now());
+            conversations.add(c);
             return c;
         });
-        when(conversationRepository.findById(anyLong())).thenAnswer(inv -> {
-            long id = inv.getArgument(0);
-            return conversations.stream().filter(c -> c.getId() == id).findFirst();
+        when(conversationRepository.findById(anyString())).thenAnswer(inv -> {
+            String id = inv.getArgument(0);
+            return conversations.stream().filter(c -> id.equals(c.getId())).findFirst();
         });
         when(conversationRepository.findByUserIdOrderByUpdatedAtDesc(anyLong())).thenAnswer(inv -> {
             long userId = inv.getArgument(0);
@@ -88,8 +83,8 @@ class QaConversationServiceTest {
         });
         org.mockito.Mockito.doNothing().when(conversationRepository).delete(any(Conversation.class));
 
-        when(messageRepository.save(any(Message.class))).thenAnswer(inv -> {
-            Message m = inv.getArgument(0);
+        when(messageRepository.save(any(ChatMemoryMessage.class))).thenAnswer(inv -> {
+            ChatMemoryMessage m = inv.getArgument(0);
             if (m.getId() == null) {
                 m.setId(++messageSeq);
                 m.setCreatedAt(OffsetDateTime.now());
@@ -97,16 +92,9 @@ class QaConversationServiceTest {
             }
             return m;
         });
-        when(messageRepository.findByConversationIdOrderByIdDesc(anyLong())).thenAnswer(inv -> {
-            long convId = inv.getArgument(0);
-            List<Message> list = messages.stream().filter(m -> m.getConversationId() == convId).toList();
-            List<Message> desc = new ArrayList<>(list);
-            java.util.Collections.reverse(desc);
-            return desc;
-        });
-        when(messageRepository.findByConversationIdOrderByIdAsc(anyLong())).thenAnswer(inv -> {
-            long convId = inv.getArgument(0);
-            return messages.stream().filter(m -> m.getConversationId() == convId).toList();
+        when(messageRepository.findByConversationIdOrderByIdAsc(anyString())).thenAnswer(inv -> {
+            String convId = inv.getArgument(0);
+            return messages.stream().filter(m -> convId.equals(m.getConversationId())).toList();
         });
         when(messageRepository.findById(anyLong())).thenAnswer(inv -> {
             long id = inv.getArgument(0);
@@ -116,8 +104,7 @@ class QaConversationServiceTest {
 
     @Test
     void firstAskCreatesConversationTitledByQuestion() {
-        when(knowledgeRetriever.retrieve(anyString(), anyLong(), anyString())).thenReturn(List.of(hit()));
-        when(chatService.chatStream(anyString())).thenReturn(Flux.just("答案"));
+        when(chatService.chatStream(anyString(), anyString())).thenReturn(Flux.just("答案"));
 
         QaService.QaResult result = qaService.ask("年假有几天？", null, 99L, "VIEWER");
 
@@ -125,92 +112,70 @@ class QaConversationServiceTest {
         assertEquals(1, conversations.size());
         assertEquals("年假有几天？", conversations.get(0).getTitle());
         assertEquals(99L, conversations.get(0).getUserId());
+        assertEquals(result.conversationId(), conversations.get(0).getId());
     }
 
     @Test
     void askWithExistingConversationReusesIt() {
-        when(knowledgeRetriever.retrieve(anyString(), anyLong(), anyString())).thenReturn(List.of(hit()));
-        when(chatService.chatStream(anyString())).thenReturn(Flux.just("答案"));
+        when(chatService.chatStream(anyString(), anyString())).thenReturn(Flux.just("答案"));
 
         Conversation existing = new Conversation();
-        existing.setId(7L);
+        existing.setId("conv-7");
         existing.setUserId(99L);
         existing.setTitle("已有会话");
         conversations.add(existing);
 
-        QaService.QaResult result = qaService.ask("继续问", 7L, 99L, "VIEWER");
+        QaService.QaResult result = qaService.ask("继续问", "conv-7", 99L, "VIEWER");
 
-        assertEquals(7L, result.conversationId());
+        assertEquals("conv-7", result.conversationId());
         assertEquals(1, conversations.size());
     }
 
     @Test
     void askRejectsConversationOwnedByAnotherUser() {
         Conversation other = new Conversation();
-        other.setId(8L);
+        other.setId("conv-8");
         other.setUserId(1L);
         other.setTitle("别人的会话");
         conversations.add(other);
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> qaService.ask("问题", 8L, 99L, "VIEWER"));
+                () -> qaService.ask("问题", "conv-8", 99L, "VIEWER"));
         assertEquals(404, ex.getCode());
     }
 
     @Test
-    void promptContainsPreviousTurnsAsHistory() {
-        when(knowledgeRetriever.retrieve(anyString(), anyLong(), anyString())).thenReturn(List.of(hit()));
-        when(chatService.chatStream(anyString())).thenReturn(Flux.just("答案"));
+    void chatMemoryUsesConversationIdAsString() {
+        when(chatService.chatStream(anyString(), anyString())).thenReturn(Flux.just("答案"));
 
-        Conversation existing = new Conversation();
-        existing.setId(7L);
-        existing.setUserId(99L);
-        existing.setTitle("已有会话");
-        conversations.add(existing);
-        // 预置一轮历史
-        Message prevUser = new Message();
-        prevUser.setId(1L);
-        prevUser.setConversationId(7L);
-        prevUser.setRole("user");
-        prevUser.setContent("上一轮问的是什么");
-        messages.add(prevUser);
-        Message prevAssistant = new Message();
-        prevAssistant.setId(2L);
-        prevAssistant.setConversationId(7L);
-        prevAssistant.setRole("assistant");
-        prevAssistant.setContent("上一轮的回答");
-        messages.add(prevAssistant);
+        QaService.QaResult result = qaService.ask("问题", null, 99L, "VIEWER");
 
-        qaService.ask("那它呢？", 7L, 99L, "VIEWER");
-
-        verify(chatService).chatStream(org.mockito.ArgumentMatchers.argThat(prompt ->
-                prompt.contains("历史对话")
-                        && prompt.contains("上一轮问的是什么")
-                        && prompt.contains("上一轮的回答")
-                        && prompt.contains("用户：")));
+        verify(chatService).chatStream("问题", result.conversationId());
     }
 
     @Test
     void saveAssistantMessagePersistsAnswerAndSources() {
         Conversation conv = new Conversation();
-        conv.setId(7L);
+        conv.setId("conv-7");
         conv.setUserId(99L);
         conv.setTitle("会话");
         conversations.add(conv);
 
-        Long messageId = qaService.saveAssistantMessage(7L, "回答内容", List.of());
+        Long messageId = qaService.saveAssistantMessage("conv-7", "回答内容", List.of());
 
         assertNotNull(messageId);
-        Message saved = messages.stream().filter(m -> m.getId() == messageId).findFirst().orElseThrow();
-        assertEquals("assistant", saved.getRole());
+        ChatMemoryMessage saved = messages.stream()
+                .filter(m -> m.getId().equals(messageId)).findFirst().orElseThrow();
+        assertEquals("conv-7", saved.getConversationId());
+        assertEquals("ASSISTANT", saved.getRole());
         assertEquals("回答内容", saved.getContent());
     }
 
     @Test
     void saveFeedbackUpdatesMessage() {
-        Message m = new Message();
+        ChatMemoryMessage m = new ChatMemoryMessage();
         m.setId(5L);
-        m.setConversationId(7L);
+        m.setConversationId("conv-7");
         m.setRole("assistant");
         m.setContent("回答");
         messages.add(m);
@@ -219,18 +184,19 @@ class QaConversationServiceTest {
 
         assertEquals(1, m.getFeedback());
         qaService.saveFeedback(5L, false);
+
         assertEquals(0, m.getFeedback());
     }
 
     @Test
     void listConversationsReturnsOnlyOwnedOnes() {
         Conversation mine = new Conversation();
-        mine.setId(1L);
+        mine.setId("conv-1");
         mine.setUserId(99L);
         mine.setTitle("我的会话");
         conversations.add(mine);
         Conversation theirs = new Conversation();
-        theirs.setId(2L);
+        theirs.setId("conv-2");
         theirs.setUserId(1L);
         theirs.setTitle("别人的");
         conversations.add(theirs);
@@ -239,80 +205,64 @@ class QaConversationServiceTest {
 
         assertEquals(1, list.size());
         assertEquals("我的会话", list.get(0).getTitle());
+        assertEquals("conv-1", list.get(0).getId());
     }
 
     @Test
     void listMessagesReturnsMessagesInOrder() {
         Conversation conv = new Conversation();
-        conv.setId(7L);
+        conv.setId("conv-7");
         conv.setUserId(99L);
         conv.setTitle("会话");
         conversations.add(conv);
         for (int i = 1; i <= 3; i++) {
-            Message m = new Message();
+            ChatMemoryMessage m = new ChatMemoryMessage();
             m.setId((long) i);
-            m.setConversationId(7L);
-            m.setRole(i % 2 == 1 ? "user" : "assistant");
+            m.setConversationId("conv-7");
+            m.setRole(i % 2 == 1 ? "USER" : "ASSISTANT");
             m.setContent("消息" + i);
             messages.add(m);
         }
 
-        List<MessageVO> list = qaService.listMessages(7L, 99L);
+        List<MessageVO> list = qaService.listMessages("conv-7", 99L);
 
         assertEquals(3, list.size());
         assertEquals("消息1", list.get(0).getContent());
         assertEquals("消息3", list.get(2).getContent());
+        assertEquals("user", list.get(0).getRole());
+        assertEquals("assistant", list.get(1).getRole());
     }
 
     @Test
     void deleteConversationRemovesMessages() {
         Conversation conv = new Conversation();
-        conv.setId(7L);
+        conv.setId("conv-7");
         conv.setUserId(99L);
         conv.setTitle("会话");
         conversations.add(conv);
-        Message m = new Message();
+        ChatMemoryMessage m = new ChatMemoryMessage();
         m.setId(1L);
-        m.setConversationId(7L);
-        m.setRole("user");
+        m.setConversationId("conv-7");
+        m.setRole("USER");
         m.setContent("消息");
         messages.add(m);
 
-        qaService.deleteConversation(7L, 99L);
+        qaService.deleteConversation("conv-7", 99L);
 
-        verify(messageRepository).deleteByConversationId(7L);
+        verify(messageRepository).deleteByConversationId("conv-7");
         verify(conversationRepository).delete(conv);
     }
 
     @Test
     void deleteConversationRejectsOtherUsers() {
         Conversation other = new Conversation();
-        other.setId(8L);
+        other.setId("conv-8");
         other.setUserId(1L);
         other.setTitle("别人的");
         conversations.add(other);
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> qaService.deleteConversation(8L, 99L));
+                () -> qaService.deleteConversation("conv-8", 99L));
         assertEquals(404, ex.getCode());
-    }
-
-    @Test
-    void emptyRetrievalStillPersistsUserQuestion() {
-        when(knowledgeRetriever.retrieve(anyString(), anyLong(), anyString())).thenReturn(List.of());
-
-        qaService.ask("没有答案的问题", null, 99L, "VIEWER");
-
-        assertEquals(1, messages.size());
-        assertEquals("user", messages.get(0).getRole());
-        assertTrue(messages.get(0).getContent().contains("没有答案"));
-    }
-
-    private Document hit() {
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("documentId", 1L);
-        metadata.put("title", "制度");
-        metadata.put("chunkIndex", 0);
-        return Document.builder().id("x").text("分块内容").metadata(metadata).build();
     }
 }

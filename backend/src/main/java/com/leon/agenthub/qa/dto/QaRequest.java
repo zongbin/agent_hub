@@ -9,7 +9,7 @@ import lombok.Data;
 public class QaRequest {
 
     /** 会话 ID（可选，为空则新建会话） */
-    private Long conversationId;
+    private String conversationId;
 
     /** 问题内容 */
     private String question;

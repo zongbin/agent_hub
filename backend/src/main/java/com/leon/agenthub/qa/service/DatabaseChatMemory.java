@@ -37,10 +37,10 @@ public class DatabaseChatMemory implements ChatMemory {
         List<ChatMemoryMessage> entities = messages.stream()
                 .map(message -> {
                     ChatMemoryMessage entity = new ChatMemoryMessage();
-                    entity.setConversationId(Long.valueOf(conversationId));
+                    entity.setConversationId(conversationId);
                     entity.setRole(message.getMessageType().name());
                     entity.setContent(message.getText());
-                    entity.setSources("{\"todo\":\"123\"}");
+                    entity.setSources(null);
                     return entity;
                 })
                 .toList();
@@ -56,7 +56,7 @@ public class DatabaseChatMemory implements ChatMemory {
         // 先取最近 lastN 条（倒序），再反转回正序，保证对话顺序
 
         List<ChatMemoryMessage> desc = chatMemoryMessageRepository
-                .findByConversationIdOrderByIdDesc(Long.valueOf(conversationId));
+                .findByConversationIdOrderByIdDesc(conversationId);
 
         if (desc.isEmpty()) {
             return List.of();
@@ -71,7 +71,7 @@ public class DatabaseChatMemory implements ChatMemory {
     @Override
     public void clear(String conversationId) {
         Assert.hasText(conversationId, "conversationId cannot be null or empty");
-        chatMemoryMessageRepository.deleteByConversationId(Long.valueOf(conversationId));
+        chatMemoryMessageRepository.deleteByConversationId(conversationId);
     }
 
     private Message toMessage(MessageType type, String content) {

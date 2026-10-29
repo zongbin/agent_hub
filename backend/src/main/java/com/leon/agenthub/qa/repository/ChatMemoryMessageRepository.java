@@ -16,15 +16,15 @@ public interface ChatMemoryMessageRepository extends JpaRepository<ChatMemoryMes
     /**
      * 查询某会话的消息，按时间倒序（用于取最近 N 条）。
      */
-    List<ChatMemoryMessage> findByConversationIdOrderByIdDesc(Long conversationId);
+    List<ChatMemoryMessage> findByConversationIdOrderByIdDesc(String conversationId);
 
     /**
      * 查询某会话的消息，按时间升序（用于展示）。
      */
-    List<ChatMemoryMessage> findByConversationIdOrderByIdAsc(Long conversationId);
+    List<ChatMemoryMessage> findByConversationIdOrderByIdAsc(String conversationId);
 
     /**
      * 删除某会话的全部消息。
      */
-    void deleteByConversationId(Long conversationId);
+    void deleteByConversationId(String conversationId);
 }

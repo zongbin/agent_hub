@@ -26,7 +26,7 @@ agent_hub/
 │       │   └── common/        # 公共基础设施
 │       └── resources/
 │           ├── application.yml
-│           └── db/migration/  # Flyway 迁移脚本
+│           └── db/migration/  # 建库脚本（schema.sql，全量重建用，手动执行）
 ├── frontend/                  # Vue 3 + TS + Element Plus + Vite
 │   ├── package.json
 │   ├── vite.config.ts

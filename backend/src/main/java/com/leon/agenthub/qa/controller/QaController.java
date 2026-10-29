@@ -160,7 +160,7 @@ public class QaController {
      */
     @GetMapping("/conversations/{id}/messages")
     @RequirePermission(resource = "QA", action = "READ")
-    public R<List<MessageVO>> messages(@PathVariable Long id) {
+    public R<List<MessageVO>> messages(@PathVariable String id) {
         return R.ok(qaService.listMessages(id, securityContextUtil.getCurrentUserId()));
     }
 
@@ -169,7 +169,7 @@ public class QaController {
      */
     @DeleteMapping("/conversations/{id}")
     @RequirePermission(resource = "QA", action = "READ")
-    public R<Void> deleteConversation(@PathVariable Long id) {
+    public R<Void> deleteConversation(@PathVariable String id) {
         qaService.deleteConversation(id, securityContextUtil.getCurrentUserId());
         return R.ok();
     }
@@ -197,7 +197,7 @@ public class QaController {
         return payload;
     }
 
-    private Map<String, Object> donePayload(Long conversationId, Long messageId) {
+    private Map<String, Object> donePayload(String conversationId, Long messageId) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("conversationId", conversationId);
         payload.put("messageId", messageId);

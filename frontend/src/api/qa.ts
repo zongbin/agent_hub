@@ -10,7 +10,7 @@ export interface QaSource {
 
 /** 会话 */
 export interface Conversation {
-  id: number
+  id: string
   title: string
   createdAt: string
   updatedAt: string
@@ -29,11 +29,11 @@ export interface Message {
 /** SSE 回调集合 */
 export interface QaStreamHandlers {
   /** 引用来源到达（含 conversationId） */
-  onSource: (conversationId: number, sources: QaSource[]) => void
+  onSource: (conversationId: string, sources: QaSource[]) => void
   /** 答案增量 */
   onDelta: (content: string) => void
   /** 生成完成（含 messageId） */
-  onDone: (conversationId: number, messageId: number) => void
+  onDone: (conversationId: string, messageId: number) => void
   /** 发生错误 */
   onError: (message: string) => void
 }
@@ -52,7 +52,7 @@ export const qaApi = {
    */
   async askQuestion(
     question: string,
-    conversationId: number | null,
+    conversationId: string | null,
     handlers: QaStreamHandlers,
     signal?: AbortSignal
   ): Promise<void> {
@@ -143,7 +143,7 @@ export const qaApi = {
   /**
    * 查询会话消息。
    */
-  async messages(conversationId: number): Promise<Message[]> {
+  async messages(conversationId: string): Promise<Message[]> {
     const res = await fetch(`/api/qa/conversations/${conversationId}/messages`, {
       headers: authHeaders()
     })
@@ -157,7 +157,7 @@ export const qaApi = {
   /**
    * 删除会话。
    */
-  async deleteConversation(conversationId: number): Promise<void> {
+  async deleteConversation(conversationId: string): Promise<void> {
     const res = await fetch(`/api/qa/conversations/${conversationId}`, {
       method: 'DELETE',
       headers: authHeaders()
@@ -191,7 +191,7 @@ function dispatchEvent(event: string, rawData: string, handlers: QaStreamHandler
   switch (event) {
     case 'source':
       handlers.onSource(
-        Number(payload.conversationId ?? 0),
+        String(payload.conversationId ?? ''),
         (payload.sources as QaSource[]) ?? []
       )
       break
@@ -200,7 +200,7 @@ function dispatchEvent(event: string, rawData: string, handlers: QaStreamHandler
       break
     case 'done':
       handlers.onDone(
-        Number(payload.conversationId ?? 0),
+        String(payload.conversationId ?? ''),
         Number(payload.messageId ?? 0)
       )
       break

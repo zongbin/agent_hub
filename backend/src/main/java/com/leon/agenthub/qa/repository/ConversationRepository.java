@@ -10,7 +10,7 @@ import java.util.List;
  * 问答会话数据访问接口。
  */
 @Repository
-public interface ConversationRepository extends JpaRepository<Conversation, Long> {
+public interface ConversationRepository extends JpaRepository<Conversation, String> {
 
     /**
      * 查询用户的全部分会话，按最近更新倒序。
