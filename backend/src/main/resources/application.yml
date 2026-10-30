@@ -39,12 +39,13 @@ spring:
     username: ${DB_USER:agenthub}
     password: ${DB_PASS:agenthub}
     driver-class-name: org.postgresql.Driver
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASS:}
-      database: ${REDIS_DB:0}
+  # Redis 配置已临时注释（未部署 Redis，恢复依赖后取消注释）
+  # data:
+  #   redis:
+  #     host: ${REDIS_HOST:localhost}
+  #     port: ${REDIS_PORT:6379}
+  #     password: ${REDIS_PASS:}
+  #     database: ${REDIS_DB:0}
   # JPA / Hibernate — 自动管理数据库 schema
   jpa:
     hibernate:

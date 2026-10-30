@@ -4,7 +4,7 @@ import com.leon.agenthub.common.response.R;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
-import org.springframework.data.redis.core.StringRedisTemplate;
+// import org.springframework.data.redis.core.StringRedisTemplate;   // Redis 依赖已临时注释
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,11 +24,10 @@ import java.util.Map;
 public class HealthController {
 
     private final DataSource dataSource;
-    private final StringRedisTemplate redisTemplate;
+    // private final StringRedisTemplate redisTemplate;                // Redis 依赖已临时注释
 
-    public HealthController(DataSource dataSource, StringRedisTemplate redisTemplate) {
+    public HealthController(DataSource dataSource) {
         this.dataSource = dataSource;
-        this.redisTemplate = redisTemplate;
     }
 
     @Operation(summary = "完整健康检查", description = "检查 PostgreSQL、Redis 连接状态")
@@ -43,8 +42,8 @@ public class HealthController {
         // 1. PostgreSQL 检查
         components.put("postgres", checkDatabase());
 
-        // 2. Redis 检查
-        components.put("redis", checkRedis());
+        // 2. Redis 检查 —— Redis 依赖已临时注释，恢复依赖后取消下方注释
+        // components.put("redis", checkRedis());
 
         result.setComponents(components);
 
@@ -84,27 +83,30 @@ public class HealthController {
         return health;
     }
 
-    private ComponentHealth checkRedis() {
-        ComponentHealth health = new ComponentHealth();
-        try {
-            // 用真实读写操作验证连通性（Lettuce 的 ping 在健康检查场景不稳定）
-            String testKey = "__healthcheck__";
-            redisTemplate.opsForValue().set(testKey, "ok");
-            String value = redisTemplate.opsForValue().get(testKey);
-            redisTemplate.delete(testKey);
-            if ("ok".equals(value)) {
-                health.setStatus("UP");
-                health.setDetail("read/write ok");
-            } else {
-                health.setStatus("DOWN");
-                health.setDetail("unexpected value: " + value);
-            }
-        } catch (Exception e) {
-            health.setStatus("DOWN");
-            health.setDetail(e.getMessage());
-        }
-        return health;
-    }
+    /**
+     * Redis 连通性检查 —— Redis 依赖已临时注释，恢复依赖后取消下方注释
+     */
+    // private ComponentHealth checkRedis() {
+    //     ComponentHealth health = new ComponentHealth();
+    //     try {
+    //         // 用真实读写操作验证连通性（Lettuce 的 ping 在健康检查场景不稳定）
+    //         String testKey = "__healthcheck__";
+    //         redisTemplate.opsForValue().set(testKey, "ok");
+    //         String value = redisTemplate.opsForValue().get(testKey);
+    //         redisTemplate.delete(testKey);
+    //         if ("ok".equals(value)) {
+    //             health.setStatus("UP");
+    //             health.setDetail("read/write ok");
+    //         } else {
+    //             health.setStatus("DOWN");
+    //             health.setDetail("unexpected value: " + value);
+    //         }
+    //     } catch (Exception e) {
+    //         health.setStatus("DOWN");
+    //         health.setDetail(e.getMessage());
+    //     }
+    //     return health;
+    // }
 
     @Data
     public static class HealthResult {

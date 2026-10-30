@@ -53,11 +53,13 @@
             <artifactId>postgresql</artifactId>
         </dependency>
 
-        <!-- Redis（Lettuce 客户端，SSE 状态、缓存） -->
+        <!-- Redis（Lettuce 客户端，SSE 状态、缓存） —— 已临时注释，未部署 Redis 时避免启动失败 -->
+        <!--
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        -->
 
         <!-- Spring Security（认证 + BCrypt 密码加密） -->
         <dependency>
