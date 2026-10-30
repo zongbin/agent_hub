@@ -67,7 +67,7 @@ server:
 # Windows 控制台默认 GBK，与源码/日志 UTF-8 不一致会导致中文乱码
 logging:
   charset:
-    console: UTF-8
+    console: ${stdout.encoding}
     file: UTF-8
 
 # 自定义配置

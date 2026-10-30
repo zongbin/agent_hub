@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
    * 后端 context-path 是 /api，vite 的 '/api' 代理规则会原样保留该前缀，
    * 写成 http://host/api 会被拼成 /api/api/xxx。
    */
-  const proxyTarget = env.VITE_PROXY_TARGET || 'http://localhost:8080'
+  const proxyTarget = 'http://localhost:8080'
 
   return {
     plugins: [vue()],
