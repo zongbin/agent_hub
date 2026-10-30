@@ -5,26 +5,22 @@ import com.leon.agenthub.auth.enums.UserStatus;
 import com.leon.agenthub.auth.model.User;
 import com.leon.agenthub.auth.repository.UserRepository;
 import com.leon.agenthub.auth.security.SecurityContextUtil;
+import com.leon.agenthub.common.dto.PageResult;
 import com.leon.agenthub.common.exception.BusinessException;
 import com.leon.agenthub.common.response.R;
 import com.leon.agenthub.permission.dto.*;
 import com.leon.agenthub.permission.enums.UserRole;
 import com.leon.agenthub.permission.model.AuditLogEntity;
-import com.leon.agenthub.permission.repository.AuditLogRepository;
+import com.leon.agenthub.permission.service.AuditLogService;
 import com.leon.agenthub.permission.service.DocumentPermissionService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.OffsetDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 权限管理控制器 — 用户角色管理、文档授权/撤销、审计日志查询。
@@ -39,7 +35,7 @@ public class PermissionController {
 
     private final UserRepository userRepository;
     private final DocumentPermissionService documentPermissionService;
-    private final AuditLogRepository auditLogRepository;
+    private final AuditLogService auditLogService;
     private final BCryptPasswordEncoder passwordEncoder;
     private final SecurityContextUtil securityContextUtil;
 
@@ -225,21 +221,8 @@ public class PermissionController {
      * <p>分页参数继承通用基类 {@link com.leon.agenthub.common.dto.PageQuery}（page 从 1 开始、size 默认 20）。
      */
     @GetMapping("/audit-logs")
-    public R<Map<String, Object>> queryAuditLogs(AuditLogQuery query) {
-
-        OffsetDateTime start = query.getStartTime() != null ? OffsetDateTime.parse(query.getStartTime()) : null;
-        OffsetDateTime end = query.getEndTime() != null ? OffsetDateTime.parse(query.getEndTime()) : null;
-
-        // 真正的数据库级分页（替代原来的内存分页）
-        PageRequest pageRequest = query.toPageRequest(Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<AuditLogEntity> page = auditLogRepository.findByCondition(query.getUserId(), start, end, pageRequest);
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("list", page.getContent());
-        result.put("total", page.getTotalElements());
-        result.put("page", query.getPage());
-        result.put("size", query.getPageSize());
-
-        return R.ok(result);
+    public R<PageResult<AuditLogEntity>> queryAuditLogs(AuditLogQuery query) {
+        checkAdmin();
+        return R.ok(PageResult.of(auditLogService.queryAuditLogs(query)));
     }
 }

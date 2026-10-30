@@ -75,6 +75,7 @@ export interface RevokePermissionRequest {
 /** 审计日志查询参数（分页字段与后端 PageQuery 保持一致：page 从 1 开始） */
 export interface AuditLogQueryParams {
   userId?: number
+  actionType?: string
   startTime?: string
   endTime?: string
   page: number

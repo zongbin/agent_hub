@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import type { AuditLogItem } from '@/types/permission'
+import { ElMessage } from 'element-plus'
+import type { AuditLogItem, AuditLogQueryParams } from '@/types/permission'
 import { permissionApi } from '@/api/permission'
 import { useResponsive } from '@/composables/useResponsive'
 
@@ -28,6 +29,7 @@ const actionTypeOptions = [
   { label: '查看文档', value: 'VIEW' },
   { label: '编辑文档', value: 'EDIT' },
   { label: '删除文档', value: 'DELETE' },
+  { label: '上传文档', value: 'UPLOAD' },
   { label: '创建用户', value: 'CREATE_USER' },
   { label: '更新用户', value: 'UPDATE_USER' },
   { label: '修改角色', value: 'UPDATE_ROLE' },
@@ -47,6 +49,7 @@ const actionLabelMap: Record<string, string> = {
   VIEW_CONFIDENTIAL: '查看机密文档',
   EDIT: '编辑文档',
   DELETE: '删除文档',
+  UPLOAD: '上传文档',
   UPDATE_USER: '更新用户',
   UPDATE_ROLE: '修改角色',
   TOGGLE_STATUS: '启用/禁用用户',
@@ -67,6 +70,7 @@ const actionTagType: Record<string, string> = {
   VIEW_CONFIDENTIAL: 'warning',
   EDIT: 'warning',
   DELETE: 'danger',
+  UPLOAD: 'success',
   UPDATE_USER: 'warning',
   UPDATE_ROLE: 'warning',
   TOGGLE_STATUS: 'warning',
@@ -81,11 +85,12 @@ const actionTagType: Record<string, string> = {
 async function fetchLogs() {
   loading.value = true
   try {
-    const params: any = {
+    const params: AuditLogQueryParams = {
       page: pagination.page,
       size: pagination.size
     }
     if (query.userId) params.userId = query.userId
+    if (query.actionType) params.actionType = query.actionType
     if (query.dateRange && query.dateRange.length === 2) {
       params.startTime = query.dateRange[0]
       params.endTime = query.dateRange[1]
@@ -93,10 +98,11 @@ async function fetchLogs() {
     const result = await permissionApi.queryAuditLogs(params)
     logs.value = result.list
     total.value = result.total
-  } catch {
-    // 演示数据
+  } catch (error) {
+    // 保留错误信息，避免把接口异常伪装成「暂无数据」
     logs.value = []
     total.value = 0
+    ElMessage.error((error as Error).message || '查询审计日志失败')
   } finally {
     loading.value = false
   }

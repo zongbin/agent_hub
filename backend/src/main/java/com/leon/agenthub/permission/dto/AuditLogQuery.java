@@ -16,9 +16,12 @@ public class AuditLogQuery extends PageQuery implements Serializable {
     /** 按操作人过滤 */
     private Long userId;
 
-    /** 起始时间（ISO-8601） */
+    /** 按操作类型过滤（LOGIN / VIEW / EDIT / DELETE / GRANT / REVOKE / DENIED 等） */
+    private String actionType;
+
+    /** 起始时间（ISO-8601 或 yyyy-MM-dd） */
     private String startTime;
 
-    /** 结束时间（ISO-8601） */
+    /** 结束时间（ISO-8601 或 yyyy-MM-dd） */
     private String endTime;
 }
