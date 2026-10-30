@@ -157,7 +157,7 @@ const quickActions = [
 <style scoped>
 .dashboard {
   max-width: 1180px;
-  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 /* ===== 欢迎卡片 ===== */

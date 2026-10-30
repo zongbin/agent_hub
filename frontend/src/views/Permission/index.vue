@@ -26,7 +26,7 @@ const activeTab = ref('users')
 <style scoped>
 .permission-page {
   max-width: 1180px;
-  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .permission-tabs {

@@ -85,7 +85,7 @@ export default {
         'pulse-glow': 'pulseGlow 4s ease-in-out infinite',
         shimmer: 'shimmer 3s linear infinite',
         caret: 'caret 1s step-end infinite',
-        rise: 'rise 0.4s cubic-bezier(0.22,1,0.36,1) both'
+        rise: 'rise 0.4s cubic-bezier(0.22,1,0.36,1) backwards'
       }
     }
   },

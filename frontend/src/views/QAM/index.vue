@@ -185,12 +185,14 @@ onMounted(() => {
     </aside>
 
     <!-- 移动端历史会话抽屉 -->
+    <!-- append-to-body：避免受 .qa-layout 动画残留 transform 影响而脱离视口 -->
     <el-drawer
       v-model="convDrawerVisible"
       title="历史对话"
       direction="ltr"
       :size="isMobile ? '82%' : 320"
       class="conv-drawer"
+      append-to-body
     >
       <el-button
         type="primary"
@@ -348,7 +350,7 @@ onMounted(() => {
   gap: 16px;
   height: calc(100vh - var(--header-height) - 48px);
   height: calc(100dvh - var(--header-height) - 48px);
-  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 /* ===== 会话列表 ===== */
@@ -430,7 +432,7 @@ onMounted(() => {
   margin: auto;
   text-align: center;
   max-width: 460px;
-  animation: rise 0.5s ease both;
+  animation: rise 0.5s ease backwards;
 }
 
 .empty-orb {
@@ -482,7 +484,7 @@ onMounted(() => {
   display: flex;
   gap: 11px;
   align-items: flex-start;
-  animation: rise 0.32s ease both;
+  animation: rise 0.32s ease backwards;
 }
 
 .msg-row--user {

@@ -165,7 +165,13 @@ onMounted(() => {
     </div>
 
     <!-- 授权对话框 -->
-    <el-dialog v-model="dialogVisible" title="授予文档权限" :width="isMobile ? '92%' : '480px'">
+    <!-- append-to-body：弹窗位于 el-tabs 内，父级 backdrop-filter 会破坏 fixed 定位并被 overflow 裁剪 -->
+    <el-dialog
+      v-model="dialogVisible"
+      title="授予文档权限"
+      :width="isMobile ? '92%' : '480px'"
+      append-to-body
+    >
       <el-form
         :model="grantForm"
         :label-width="isMobile ? '0' : '100px'"
@@ -211,7 +217,7 @@ onMounted(() => {
 
 <style scoped>
 .doc-permission {
-  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .info-alert {

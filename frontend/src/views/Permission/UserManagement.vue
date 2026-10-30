@@ -233,11 +233,13 @@ onMounted(() => {
     </div>
 
     <!-- 新增用户对话框 -->
+    <!-- append-to-body：弹窗位于 el-tabs 内，父级 backdrop-filter 会破坏 fixed 定位并被 overflow 裁剪 -->
     <el-dialog
       v-model="createDialogVisible"
       title="新增用户"
       :width="isMobile ? '92%' : '480px'"
       :close-on-click-modal="false"
+      append-to-body
     >
       <el-form
         ref="createFormRef"
@@ -287,7 +289,12 @@ onMounted(() => {
     </el-dialog>
 
     <!-- 修改角色对话框 -->
-    <el-dialog v-model="dialogVisible" title="修改用户角色" :width="isMobile ? '92%' : '420px'">
+    <el-dialog
+      v-model="dialogVisible"
+      title="修改用户角色"
+      :width="isMobile ? '92%' : '420px'"
+      append-to-body
+    >
       <div v-if="editingUser" class="edit-form">
         <div class="edit-row">
           <span class="edit-label">用户名：</span>
@@ -332,7 +339,7 @@ onMounted(() => {
 
 <style scoped>
 .user-management {
-  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 /* ===== 工具栏 ===== */

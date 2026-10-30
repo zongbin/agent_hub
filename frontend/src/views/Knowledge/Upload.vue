@@ -162,7 +162,7 @@ const steps = ['上传文件', '文本解析', '智能分块', '向量化入库'
 .upload-page {
   max-width: 760px;
   margin: 0 auto;
-  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .upload-card {

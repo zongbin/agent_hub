@@ -282,7 +282,7 @@ onMounted(() => {
 
 <style scoped>
 .detail-page {
-  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .back-btn {

@@ -238,7 +238,7 @@ const capabilities = ['RAG 语义检索', '多智能体编排', '细粒度权限
   position: relative;
   z-index: 1;
   max-width: 520px;
-  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .hero-badge {
@@ -302,7 +302,7 @@ const capabilities = ['RAG 语义检索', '多智能体编排', '细粒度权限
 .login-panel {
   position: relative;
   z-index: 1;
-  animation: rise 0.7s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.7s 0.1s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .login-card {

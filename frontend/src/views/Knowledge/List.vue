@@ -335,11 +335,13 @@ onMounted(() => {
     </div>
 
     <!-- 上传对话框 -->
+    <!-- append-to-body：避免受页面容器（transform/backdrop-filter）影响而脱离视口 -->
     <el-dialog
       v-model="dialogVisible"
       title="上传文档"
       :width="isMobile ? '92%' : '520px'"
       :close-on-click-modal="false"
+      append-to-body
     >
       <el-form
         :model="form"
@@ -396,7 +398,7 @@ onMounted(() => {
 
 <style scoped>
 .knowledge-page {
-  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 /* ===== 工具栏 ===== */
