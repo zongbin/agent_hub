@@ -33,17 +33,36 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
      * @param pageable      分页参数
      * @return 分页文档列表
      */
-    @Query("SELECT d FROM Document d WHERE " +
-           "(:keyword IS NULL OR LOWER(CAST(d.title AS string)) LIKE '%' || LOWER(:keyword) || '%' " +
-           " OR LOWER(CAST(COALESCE(d.summary, '') AS string)) LIKE '%' || LOWER(:keyword) || '%' " +
-           " OR LOWER(CAST(COALESCE(d.fileType, '') AS string)) LIKE '%' || LOWER(:keyword) || '%') AND " +
-           "(:securityLevel IS NULL OR d.securityLevel = :securityLevel) AND " +
-           "(:statusCode IS NULL OR d.statusCode = :statusCode) AND " +
+    /**
+     * 使用原生 SQL：数据库中 title/summary/file_type 列实际为 bytea 类型
+     * （schema.sql 声明为 TEXT/VARCHAR，但已有数据未按规范迁移），
+     * 需用 convert_from(col, 'UTF8') 显式将 bytea 转为 text，
+     * 否则 LOWER() 会报 "function lower(bytea) does not exist"。
+     */
+    @Query(value = "SELECT d.* FROM documents d WHERE " +
+           "d.deleted = 0 AND " +
+           "(:keyword IS NULL OR LOWER(convert_from(d.title, 'UTF8')) LIKE '%' || LOWER(:keyword) || '%' " +
+           " OR LOWER(convert_from(COALESCE(d.summary, ''::bytea), 'UTF8')) LIKE '%' || LOWER(:keyword) || '%' " +
+           " OR LOWER(convert_from(COALESCE(d.file_type, ''::bytea), 'UTF8')) LIKE '%' || LOWER(:keyword) || '%') AND " +
+           "(:securityLevel IS NULL OR d.security_level = :securityLevel) AND " +
+           "(:statusCode IS NULL OR d.status = :statusCode) AND " +
            "(:userRole = 'ADMIN' OR " +
-           " d.id IN (SELECT dp.documentId FROM DocPermission dp WHERE dp.granteeId = :userId) OR " +
-           " d.securityLevel = 'PUBLIC' OR " +
-           " (:userRole IN ('EDITOR', 'VIEWER') AND d.securityLevel = 'INTERNAL')) " +
-           "ORDER BY d.createdAt DESC")
+           " d.id IN (SELECT dp.document_id FROM doc_permissions dp WHERE dp.grantee_id = :userId) OR " +
+           " d.security_level = 'PUBLIC' OR " +
+           " (:userRole IN ('EDITOR', 'VIEWER') AND d.security_level = 'INTERNAL')) " +
+           "ORDER BY d.created_at DESC",
+           countQuery = "SELECT COUNT(d.*) FROM documents d WHERE " +
+           "d.deleted = 0 AND " +
+           "(:keyword IS NULL OR LOWER(convert_from(d.title, 'UTF8')) LIKE '%' || LOWER(:keyword) || '%' " +
+           " OR LOWER(convert_from(COALESCE(d.summary, ''::bytea), 'UTF8')) LIKE '%' || LOWER(:keyword) || '%' " +
+           " OR LOWER(convert_from(COALESCE(d.file_type, ''::bytea), 'UTF8')) LIKE '%' || LOWER(:keyword) || '%') AND " +
+           "(:securityLevel IS NULL OR d.security_level = :securityLevel) AND " +
+           "(:statusCode IS NULL OR d.status = :statusCode) AND " +
+           "(:userRole = 'ADMIN' OR " +
+           " d.id IN (SELECT dp.document_id FROM doc_permissions dp WHERE dp.grantee_id = :userId) OR " +
+           " d.security_level = 'PUBLIC' OR " +
+           " (:userRole IN ('EDITOR', 'VIEWER') AND d.security_level = 'INTERNAL'))",
+           nativeQuery = true)
     Page<Document> findPageWithPermission(@Param("keyword") String keyword,
                                            @Param("securityLevel") String securityLevel,
                                            @Param("statusCode") Integer statusCode,
