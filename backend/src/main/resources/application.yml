@@ -95,6 +95,16 @@ agenthub:
     service-url: ${AGENT_SERVICE_URL:http://localhost:8000}
     connect-timeout-ms: 5000
     read-timeout-ms: 300000
+  agent:
+    # 超级智能体工具配置（文件读写 / PDF 生成 / 资源下载 / 网页爬取 / 网页搜索）
+    tool:
+      # 工具工作目录：文件读写落在 <work-dir>/file，PDF 落在 <work-dir>/pdf，下载落在 <work-dir>/download
+      work-dir: ${AGENT_TOOL_WORK_DIR:./data/agent}
+      # 网页搜索 API Key（留空则 WebSearchTool 返回不可用提示，不影响其他工具）
+      web-search-api-key: ${SEARCH_API_KEY:}
+      web-search-api-url: https://www.searchapi.io/api/v1/search
+      web-search-limit: 5
+      web-scrape-timeout-ms: 15000
   chunk:
     size: 512
     overlap: 50

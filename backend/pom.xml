@@ -149,6 +149,41 @@
             <version>${hutool.version}</version>
         </dependency>
 
+        <!-- victools JSON Schema 生成器 —— Spring AI 生成工具入参 Schema 依赖（@ToolParam） -->
+        <!-- 显式声明 4.37.0：dashscope-sdk-java 会传递引入 4.31.1（缺少 AnnotationHelper），
+             导致 ToolCallbacks.from(...) 在启动期抛 NoClassDefFoundError -->
+        <dependency>
+            <groupId>com.github.victools</groupId>
+            <artifactId>jsonschema-generator</artifactId>
+            <version>4.37.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.victools</groupId>
+            <artifactId>jsonschema-module-jackson</artifactId>
+            <version>4.37.0</version>
+        </dependency>
+
+        <!-- Jsoup（智能体工具：网页爬取） -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.19.1</version>
+        </dependency>
+
+        <!-- iText（智能体工具：PDF 生成） -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>itext-core</artifactId>
+            <version>9.1.0</version>
+            <type>pom</type>
+        </dependency>
+        <!-- iText 中文字体包（PDFGenerationTool 生成中文 PDF 需要） -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>font-asian</artifactId>
+            <version>9.1.0</version>
+        </dependency>
+
         <!-- 测试 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
