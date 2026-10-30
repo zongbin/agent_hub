@@ -34,9 +34,9 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
      * @return 分页文档列表
      */
     @Query("SELECT d FROM Document d WHERE " +
-           "(:keyword IS NULL OR LOWER(d.title) LIKE '%' || LOWER(:keyword) || '%' " +
-           " OR LOWER(COALESCE(d.summary, '')) LIKE '%' || LOWER(:keyword) || '%' " +
-           " OR LOWER(COALESCE(d.fileType, '')) LIKE '%' || LOWER(:keyword) || '%') AND " +
+           "(:keyword IS NULL OR LOWER(CAST(d.title AS string)) LIKE '%' || LOWER(:keyword) || '%' " +
+           " OR LOWER(CAST(COALESCE(d.summary, '') AS string)) LIKE '%' || LOWER(:keyword) || '%' " +
+           " OR LOWER(CAST(COALESCE(d.fileType, '') AS string)) LIKE '%' || LOWER(:keyword) || '%') AND " +
            "(:securityLevel IS NULL OR d.securityLevel = :securityLevel) AND " +
            "(:statusCode IS NULL OR d.statusCode = :statusCode) AND " +
            "(:userRole = 'ADMIN' OR " +
