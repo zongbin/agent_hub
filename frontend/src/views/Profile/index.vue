@@ -2,6 +2,9 @@
 import { onMounted } from 'vue'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useProfile } from '@/composables/useProfile'
+import { useResponsive } from '@/composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const {
   profileFormRef,
@@ -42,7 +45,8 @@ onMounted(() => {
         <el-form
           ref="profileFormRef"
           :model="profileForm"
-          label-width="80px"
+          :label-width="isMobile ? '0' : '80px'"
+          :label-position="isMobile ? 'top' : 'right'"
           class="profile-form"
         >
           <el-form-item label="用户名">
@@ -78,7 +82,8 @@ onMounted(() => {
           ref="passwordFormRef"
           :model="passwordForm"
           :rules="passwordRules"
-          label-width="80px"
+          :label-width="isMobile ? '0' : '80px'"
+          :label-position="isMobile ? 'top' : 'right'"
           class="profile-form"
         >
           <el-form-item label="原密码" prop="oldPassword">
@@ -190,5 +195,22 @@ onMounted(() => {
 
 .profile-form {
   max-width: 400px;
+}
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .profile-card {
+    padding: 18px 16px;
+  }
+
+  .profile-form {
+    max-width: 100%;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
 }
 </style>

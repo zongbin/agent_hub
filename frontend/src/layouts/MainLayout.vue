@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -10,17 +10,32 @@ import {
   Cpu,
   SwitchButton,
   UserFilled,
-  ArrowDown
+  ArrowDown,
+  Fold
 } from '@element-plus/icons-vue'
 import ProfileDrawer from '@/components/ProfileDrawer.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import { useResponsive } from '@/composables/useResponsive'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
+const { isMobile } = useResponsive()
+
 /** 当前用户是否为管理员 */
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
+
+/** 移动端侧边栏抽屉是否展开 */
+const mobileMenuVisible = ref(false)
+
+/** 路由变化时收起移动端菜单 */
+watch(
+  () => route.path,
+  () => {
+    mobileMenuVisible.value = false
+  }
+)
 
 /** 角色中文映射 */
 const roleLabelMap: Record<string, string> = {
@@ -80,8 +95,17 @@ async function handleLogout() {
 
 <template>
   <div class="app-layout ai-canvas">
+    <!-- 移动端菜单遮罩 -->
+    <transition name="mask-fade">
+      <div
+        v-if="isMobile && mobileMenuVisible"
+        class="mobile-mask"
+        @click="mobileMenuVisible = false"
+      ></div>
+    </transition>
+
     <!-- 侧边栏 -->
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ 'sidebar--open': mobileMenuVisible }">
       <!-- 极光光晕 -->
       <div class="sidebar-aurora"></div>
 
@@ -107,6 +131,7 @@ async function handleLogout() {
           class="nav-item"
           :class="{ active: route.path.startsWith(item.path) }"
           v-show="!item.adminOnly || isAdmin"
+          @click="mobileMenuVisible = false"
         >
           <span class="nav-indicator"></span>
           <el-icon :size="17">
@@ -119,7 +144,7 @@ async function handleLogout() {
         </router-link>
 
         <div class="nav-section nav-section--second">系统</div>
-        <div class="nav-item nav-item--muted" @click="openProfileDrawer">
+        <div class="nav-item nav-item--muted" @click="openProfileDrawer(); mobileMenuVisible = false">
           <span class="nav-indicator"></span>
           <el-icon :size="17"><UserFilled /></el-icon>
           <span class="nav-body">
@@ -151,6 +176,14 @@ async function handleLogout() {
       <!-- 头部 -->
       <header class="header">
         <div class="header-left">
+          <button
+            class="menu-toggle"
+            type="button"
+            aria-label="打开导航菜单"
+            @click="mobileMenuVisible = !mobileMenuVisible"
+          >
+            <el-icon :size="19"><Fold /></el-icon>
+          </button>
           <h2 class="page-title gradient-text">{{ pageTitle }}</h2>
           <span class="page-desc">{{ pageDesc }}</span>
         </div>
@@ -191,6 +224,7 @@ async function handleLogout() {
 .app-layout {
   display: flex;
   height: 100vh;
+  height: 100dvh;
 }
 
 /* ===== 侧边栏 ===== */
@@ -533,6 +567,108 @@ async function handleLogout() {
 @media (max-width: 900px) {
   .page-desc {
     display: none;
+  }
+}
+
+/* ===== 移动端菜单开关 ===== */
+.menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-right: 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  background: var(--surface-hover);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.menu-toggle:hover {
+  color: var(--text);
+  background: var(--surface-active);
+}
+
+/* ===== 移动端遮罩 ===== */
+.mobile-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1900;
+  background: var(--mask-color);
+  backdrop-filter: blur(2px);
+}
+
+.mask-fade-enter-active,
+.mask-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.mask-fade-enter-from,
+.mask-fade-leave-to {
+  opacity: 0;
+}
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+    --header-height: 54px;
+  }
+
+  /* 侧边栏改为抽屉 */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 2000;
+    width: 258px;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .sidebar--open {
+    transform: translateX(0);
+  }
+
+  .menu-toggle {
+    display: inline-flex;
+  }
+
+  /* 头部压缩 */
+  .header {
+    height: 54px;
+    padding: 0 12px;
+    flex-shrink: 0;
+  }
+
+  .page-title {
+    font-size: 16px;
+    white-space: nowrap;
+  }
+
+  .header-right {
+    gap: 10px;
+  }
+
+  .header-right .ai-badge,
+  .trigger-name,
+  .trigger-arrow {
+    display: none;
+  }
+
+  .user-trigger {
+    padding: 3px;
+  }
+
+  /* 内容区 */
+  .content-area {
+    padding: 14px 12px 20px;
   }
 }
 </style>

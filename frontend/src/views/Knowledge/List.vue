@@ -5,8 +5,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadInstance } from 'element-plus'
 import { Search, Plus, Refresh, UploadFilled } from '@element-plus/icons-vue'
 import { knowledgeApi, type DocumentStatus, type DocumentVO } from '@/api/knowledge'
+import { useResponsive } from '@/composables/useResponsive'
 
 const router = useRouter()
+const { isMobile } = useResponsive()
 const uploadRef = ref<UploadInstance>()
 const loading = ref(false)
 const documents = ref<DocumentVO[]>([])
@@ -262,23 +264,23 @@ onMounted(() => {
 
     <!-- 文档表格 -->
     <div class="table-card glass-card">
-      <el-table :data="documents" v-loading="loading" stripe>
-        <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip>
+      <el-table :data="documents" v-loading="loading" stripe :size="isMobile ? 'small' : 'default'">
+        <el-table-column prop="title" label="标题" :min-width="isMobile ? 130 : 200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-link type="primary" class="doc-link" :underline="false" @click="handleView(row)">
               {{ row.title }}
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="fileType" label="类型" width="80">
+        <el-table-column v-if="!isMobile" prop="fileType" label="类型" width="80">
           <template #default="{ row }">
             <el-tag size="small" effect="plain">{{ row.fileType?.toUpperCase() }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="fileSize" label="大小" width="100">
+        <el-table-column v-if="!isMobile" prop="fileSize" label="大小" width="100">
           <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
         </el-table-column>
-        <el-table-column prop="securityLevel" label="安全等级" width="100">
+        <el-table-column prop="securityLevel" label="密级" :width="isMobile ? 76 : 100">
           <template #default="{ row }">
             <el-tag
               size="small"
@@ -288,22 +290,22 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" label="状态" :width="isMobile ? 84 : 100">
           <template #default="{ row }">
             <el-tag size="small" :type="statusTagType(row.status)">
               {{ statusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="chunkCount" label="分块数" width="90" align="center">
+        <el-table-column v-if="!isMobile" prop="chunkCount" label="分块数" width="90" align="center">
           <template #default="{ row }">
             <span class="chunk-count">{{ row.chunkCount ?? 0 }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="上传时间" width="170">
+        <el-table-column v-if="!isMobile" prop="createdAt" label="上传时间" width="170">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" :width="isMobile ? 92 : 150" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleView(row)">查看</el-button>
             <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
@@ -324,7 +326,8 @@ onMounted(() => {
         v-model:page-size="pagination.size"
         :total="pagination.total"
         :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
+        :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+        :pager-count="isMobile ? 5 : 7"
         background
         @current-change="handlePageChange"
         @size-change="handleSizeChange"
@@ -335,10 +338,14 @@ onMounted(() => {
     <el-dialog
       v-model="dialogVisible"
       title="上传文档"
-      width="520px"
+      :width="isMobile ? '92%' : '520px'"
       :close-on-click-modal="false"
     >
-      <el-form :model="form" label-width="100px">
+      <el-form
+        :model="form"
+        :label-width="isMobile ? '0' : '100px'"
+        :label-position="isMobile ? 'top' : 'right'"
+      >
         <el-form-item label="文件" required>
           <el-upload
             ref="uploadRef"
@@ -464,5 +471,42 @@ onMounted(() => {
 .upload-tip {
   color: var(--text-faint);
   font-size: 12px;
+}
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .toolbar {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .toolbar-filters,
+  .toolbar-actions {
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .filter-select {
+    flex: 1;
+    min-width: 96px;
+    width: auto;
+  }
+
+  .toolbar-actions {
+    justify-content: space-between;
+  }
+
+  .table-card {
+    padding: 4px 6px 10px;
+  }
+
+  .pagination-bar {
+    justify-content: center;
+  }
 }
 </style>

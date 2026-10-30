@@ -4,8 +4,10 @@ import { ElMessageBox } from 'element-plus'
 import { User, Lock, Close } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProfile } from '@/composables/useProfile'
+import { useResponsive } from '@/composables/useResponsive'
 
 const authStore = useAuthStore()
+const { isMobile } = useResponsive()
 
 const {
   profileFormRef,
@@ -71,7 +73,7 @@ function getRoleLabel(role: string | undefined) {
 <template>
   <el-drawer
     v-model="visible"
-    :size="420"
+    :size="isMobile ? '100%' : 420"
     direction="rtl"
     :with-header="false"
     :before-close="handleClose"

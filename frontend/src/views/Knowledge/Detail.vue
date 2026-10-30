@@ -449,4 +449,43 @@ onMounted(() => {
     flex-direction: column;
   }
 }
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .doc-hero {
+    padding: 16px 16px;
+    gap: 12px;
+  }
+
+  .doc-title {
+    font-size: 18px;
+  }
+
+  .doc-hero-actions {
+    width: 100%;
+  }
+
+  .doc-hero-actions .el-button {
+    flex: 1;
+  }
+
+  .meta-item {
+    padding: 12px 14px;
+  }
+
+  .meta-value {
+    font-size: 14px;
+  }
+
+  .panel {
+    padding: 16px 14px;
+  }
+
+  .summary-box {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+}
 </style>

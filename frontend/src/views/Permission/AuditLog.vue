@@ -2,6 +2,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import type { AuditLogItem } from '@/types/permission'
 import { permissionApi } from '@/api/permission'
+import { useResponsive } from '@/composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const logs = ref<AuditLogItem[]>([])
 const loading = ref(false)
@@ -172,7 +175,7 @@ onMounted(() => {
             v-model.number="query.userId"
             placeholder="用户 ID"
             clearable
-            style="width: 140px"
+            :style="{ width: isMobile ? '100%' : '140px' }"
           />
         </el-form-item>
         <el-form-item label="时间范围">
@@ -182,11 +185,16 @@ onMounted(() => {
             start-placeholder="开始日期"
             end-placeholder="结束日期"
             value-format="YYYY-MM-DD"
-            style="width: 240px"
+            :style="{ width: isMobile ? '100%' : '240px' }"
           />
         </el-form-item>
         <el-form-item label="操作类型">
-          <el-select v-model="query.actionType" placeholder="全部" clearable style="width: 140px">
+          <el-select
+            v-model="query.actionType"
+            placeholder="全部"
+            clearable
+            :style="{ width: isMobile ? '100%' : '140px' }"
+          >
             <el-option
               v-for="opt in actionTypeOptions"
               :key="opt.value"
@@ -204,8 +212,13 @@ onMounted(() => {
 
     <!-- 审计日志表格 -->
     <div class="table-card">
-      <el-table :data="logs" v-loading="loading" stripe>
-        <el-table-column label="操作人" width="130">
+      <el-table
+        :data="logs"
+        v-loading="loading"
+        stripe
+        :size="isMobile ? 'small' : 'default'"
+      >
+        <el-table-column label="操作人" :width="isMobile ? 110 : 130">
           <template #default="{ row }">
             <div class="user-cell">
               <el-avatar :size="24" class="user-avatar">
@@ -215,31 +228,31 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140">
+        <el-table-column label="操作" :width="isMobile ? 104 : 140">
           <template #default="{ row }">
             <el-tag :type="getActionTagType(row.action) as any" size="small">
               {{ getActionLabel(row.action) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="资源" min-width="160" show-overflow-tooltip>
+        <el-table-column v-if="!isMobile" label="资源" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">
             {{ getResourceLabel(row.resource) }}
           </template>
         </el-table-column>
-        <el-table-column label="IP 地址" width="130">
+        <el-table-column v-if="!isMobile" label="IP 地址" width="130">
           <template #default="{ row }">
             <span class="ip-cell">{{ row.ipAddress || '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="结果" width="90">
+        <el-table-column label="结果" :width="isMobile ? 78 : 90">
           <template #default="{ row }">
             <el-tag :type="row.success === 1 ? 'success' : 'danger'" size="small">
               {{ row.success === 1 ? '成功' : '拒绝' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="时间" width="170">
+        <el-table-column label="时间" :width="isMobile ? 140 : 170">
           <template #default="{ row }">
             {{ formatTime(row.createdAt) }}
           </template>
@@ -255,7 +268,8 @@ onMounted(() => {
           v-model:page-size="pagination.size"
           :total="total"
           :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
+          :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+          :pager-count="isMobile ? 5 : 7"
           @current-change="handlePageChange"
           @size-change="handleSizeChange"
         />
@@ -316,5 +330,39 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .query-card {
+    padding: 12px 12px 0;
+  }
+
+  .query-form :deep(.el-form-item) {
+    width: 100%;
+    margin-right: 0;
+    display: block;
+  }
+
+  .query-form :deep(.el-form-item__label) {
+    display: block;
+    width: auto;
+    text-align: left;
+    margin-bottom: 4px;
+  }
+
+  .query-form :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+
+  .table-card {
+    padding: 4px 6px 12px;
+  }
+
+  .pagination-wrapper {
+    justify-content: center;
+  }
 }
 </style>

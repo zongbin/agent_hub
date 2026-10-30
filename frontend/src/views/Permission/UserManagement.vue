@@ -5,6 +5,9 @@ import type { FormInstance } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import type { UserItem, RoleInfo, CreateUserRequest } from '@/types/permission'
 import { permissionApi } from '@/api/permission'
+import { useResponsive } from '@/composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const users = ref<UserItem[]>([])
 const roles = ref<RoleInfo[]>([])
@@ -181,30 +184,35 @@ onMounted(() => {
 
     <!-- 用户表格 -->
     <div class="table-card">
-      <el-table :data="filteredUsers()" v-loading="loading" stripe>
-        <el-table-column prop="username" label="用户名" min-width="120" />
-        <el-table-column prop="realName" label="姓名" min-width="100" />
-        <el-table-column prop="email" label="邮箱" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="department" label="部门" min-width="120">
+      <el-table
+        :data="filteredUsers()"
+        v-loading="loading"
+        stripe
+        :size="isMobile ? 'small' : 'default'"
+      >
+        <el-table-column prop="username" label="用户名" :min-width="isMobile ? 90 : 120" />
+        <el-table-column prop="realName" label="姓名" :min-width="isMobile ? 70 : 100" />
+        <el-table-column v-if="!isMobile" prop="email" label="邮箱" min-width="160" show-overflow-tooltip />
+        <el-table-column v-if="!isMobile" prop="department" label="部门" min-width="120">
           <template #default="{ row }">
             {{ row.department || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="角色" width="120">
+        <el-table-column label="角色" :width="isMobile ? 84 : 120">
           <template #default="{ row }">
             <el-tag :type="roleTagType[row.role] as any" size="small">
               {{ roleLabelMap[row.role] || row.role }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="90">
+        <el-table-column label="状态" :width="isMobile ? 76 : 90">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" :width="isMobile ? 130 : 200" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEditDialog(row)">
               修改角色
@@ -225,11 +233,17 @@ onMounted(() => {
     </div>
 
     <!-- 新增用户对话框 -->
-    <el-dialog v-model="createDialogVisible" title="新增用户" width="480px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="createDialogVisible"
+      title="新增用户"
+      :width="isMobile ? '92%' : '480px'"
+      :close-on-click-modal="false"
+    >
       <el-form
         ref="createFormRef"
         :model="createForm"
-        label-width="90px"
+        :label-width="isMobile ? '0' : '90px'"
+        :label-position="isMobile ? 'top' : 'right'"
         class="create-form"
       >
         <el-form-item label="用户名" required>
@@ -273,7 +287,7 @@ onMounted(() => {
     </el-dialog>
 
     <!-- 修改角色对话框 -->
-    <el-dialog v-model="dialogVisible" title="修改用户角色" width="420px">
+    <el-dialog v-model="dialogVisible" title="修改用户角色" :width="isMobile ? '92%' : '420px'">
       <div v-if="editingUser" class="edit-form">
         <div class="edit-row">
           <span class="edit-label">用户名：</span>
@@ -291,7 +305,11 @@ onMounted(() => {
         </div>
         <div class="edit-row">
           <span class="edit-label">新角色：</span>
-          <el-select v-model="selectedRole" placeholder="选择新角色" style="width: 200px">
+          <el-select
+            v-model="selectedRole"
+            placeholder="选择新角色"
+            :style="{ width: isMobile ? '100%' : '200px' }"
+          >
             <el-option
               v-for="role in roles"
               :key="role.code"
@@ -390,5 +408,32 @@ onMounted(() => {
   font-size: 12px;
   color: var(--text-faint);
   margin-left: 8px;
+}
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .toolbar {
+    gap: 10px;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .table-card {
+    padding: 4px 6px 10px;
+  }
+
+  .edit-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .edit-label {
+    width: auto;
+  }
 }
 </style>

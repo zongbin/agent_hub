@@ -48,4 +48,20 @@ const activeTab = ref('users')
   height: 48px;
   line-height: 48px;
 }
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .permission-tabs {
+    padding: 4px 10px 14px;
+  }
+
+  .permission-tabs :deep(.el-tabs__item) {
+    font-size: 13px;
+    height: 42px;
+    line-height: 42px;
+    padding: 0 10px;
+  }
+}
 </style>

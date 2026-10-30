@@ -2,9 +2,11 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Plus, Promotion, ChatLineRound } from '@element-plus/icons-vue'
+import { Clock, Plus, Promotion, ChatLineRound } from '@element-plus/icons-vue'
 import { qaApi } from '@/api/qa'
 import type { Conversation, QaSource } from '@/api/qa'
+import ConversationList from '@/components/ConversationList.vue'
+import { useResponsive } from '@/composables/useResponsive'
 
 interface ChatMessage {
   id?: number
@@ -22,6 +24,11 @@ const loading = ref(false)
 const conversations = ref<Conversation[]>([])
 const currentConversationId = ref<string | null>(null)
 const sidebarVisible = ref(true)
+
+const { isMobile } = useResponsive()
+
+/** 移动端历史会话抽屉 */
+const convDrawerVisible = ref(false)
 
 /** 加载会话列表 */
 const loadConversations = async () => {
@@ -53,6 +60,8 @@ const openConversation = async (conversation: Conversation) => {
     }))
   } catch (error) {
     ElMessage.error((error as Error).message)
+  } finally {
+    convDrawerVisible.value = false
   }
 }
 
@@ -144,14 +153,6 @@ const openDocument = (documentId: number) => {
   }
 }
 
-/** 格式化时间 */
-const formatTime = (value: string) => {
-  const date = new Date(value)
-  return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(
-    date.getMinutes()
-  ).padStart(2, '0')}`
-}
-
 onMounted(() => {
   loadConversations()
 })
@@ -168,29 +169,12 @@ onMounted(() => {
         </el-button>
       </div>
 
-      <div class="conv-list">
-        <el-empty v-if="conversations.length === 0" description="暂无历史对话" :image-size="60" />
-        <div
-          v-for="c in conversations"
-          :key="c.id"
-          class="conv-item"
-          :class="{ active: currentConversationId === c.id }"
-          @click="openConversation(c)"
-        >
-          <div class="conv-meta">
-            <div class="conv-title">{{ c.title }}</div>
-            <div class="conv-time">{{ formatTime(c.updatedAt) }}</div>
-          </div>
-          <el-button
-            size="small"
-            text
-            class="conv-del"
-            @click.stop="removeConversation(c)"
-          >
-            <el-icon><Delete /></el-icon>
-          </el-button>
-        </div>
-      </div>
+      <ConversationList
+        :conversations="conversations"
+        :current-id="currentConversationId"
+        @select="openConversation"
+        @remove="removeConversation"
+      />
 
       <div class="conv-foot">
         <span class="ai-badge">
@@ -200,10 +184,42 @@ onMounted(() => {
       </div>
     </aside>
 
+    <!-- 移动端历史会话抽屉 -->
+    <el-drawer
+      v-model="convDrawerVisible"
+      title="历史对话"
+      direction="ltr"
+      :size="isMobile ? '82%' : 320"
+      class="conv-drawer"
+    >
+      <el-button
+        type="primary"
+        class="new-btn drawer-new-btn"
+        @click="startNewConversation(); convDrawerVisible = false"
+      >
+        <el-icon><Plus /></el-icon>
+        新建对话
+      </el-button>
+      <ConversationList
+        :conversations="conversations"
+        :current-id="currentConversationId"
+        @select="openConversation"
+        @remove="removeConversation"
+      />
+    </el-drawer>
+
     <!-- 聊天区 -->
     <section class="chat-panel glass-card">
       <header class="chat-head">
         <div class="chat-head-left">
+          <button
+            class="conv-toggle"
+            type="button"
+            aria-label="打开历史对话"
+            @click="convDrawerVisible = true"
+          >
+            <el-icon :size="18"><Clock /></el-icon>
+          </button>
           <el-icon :size="18" class="chat-icon"><ChatLineRound /></el-icon>
           <div>
             <div class="chat-title">智能问答</div>
@@ -331,6 +347,7 @@ onMounted(() => {
   display: flex;
   gap: 16px;
   height: calc(100vh - var(--header-height) - 48px);
+  height: calc(100dvh - var(--header-height) - 48px);
   animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -351,71 +368,6 @@ onMounted(() => {
 .new-btn {
   width: 100%;
   font-weight: 500;
-}
-
-.conv-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.conv-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 11px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background 0.2s, box-shadow 0.2s;
-}
-
-.conv-item:hover {
-  background: var(--surface-hover);
-}
-
-.conv-item.active {
-  background: linear-gradient(90deg, rgba(124, 92, 255, 0.22), rgba(34, 211, 238, 0.08));
-  box-shadow: inset 0 0 0 1px rgba(124, 92, 255, 0.3);
-}
-
-.conv-meta {
-  flex: 1;
-  min-width: 0;
-}
-
-.conv-title {
-  font-size: 13px;
-  color: var(--text-soft);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.conv-item.active .conv-title {
-  color: #fff;
-}
-
-.conv-time {
-  font-size: 10px;
-  color: var(--text-faint);
-  margin-top: 2px;
-}
-
-.conv-del {
-  color: var(--text-faint);
-  opacity: 0;
-  transition: opacity 0.2s, color 0.2s;
-}
-
-.conv-item:hover .conv-del {
-  opacity: 1;
-}
-
-.conv-del:hover {
-  color: var(--ai-pink);
 }
 
 .conv-foot {
@@ -744,9 +696,102 @@ onMounted(() => {
   color: var(--text-faint);
 }
 
+/* ===== 移动端历史会话开关 ===== */
+.conv-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  background: var(--surface-hover);
+  cursor: pointer;
+}
+
+.conv-toggle:hover {
+  color: var(--text);
+  background: var(--surface-active);
+}
+
 @media (max-width: 900px) {
   .conv-panel {
     display: none;
+  }
+
+  /* 会话列表收起后，用抽屉按钮唤起 */
+  .conv-toggle {
+    display: inline-flex;
+  }
+}
+
+.drawer-new-btn {
+  margin-bottom: 10px;
+}
+
+.conv-drawer :deep(.conv-list) {
+  max-height: 60vh;
+  padding: 0;
+}
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .qa-layout {
+    height: calc(100dvh - var(--header-height) - 26px);
+    gap: 0;
+  }
+
+  .chat-head {
+    padding: 10px 12px;
+  }
+
+  .chat-sub {
+    display: none;
+  }
+
+  .chat-head .ai-badge {
+    display: none;
+  }
+
+  .chat-body {
+    padding: 14px 12px;
+    gap: 16px;
+  }
+
+  .msg-row {
+    gap: 8px;
+  }
+
+  .msg-bubble {
+    max-width: 84%;
+    padding: 10px 12px;
+  }
+
+  .msg-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    font-size: 11px;
+  }
+
+  .empty-chips {
+    display: none;
+  }
+
+  .composer {
+    padding: 10px 12px 12px;
+  }
+
+  .composer-hint {
+    display: none;
+  }
+
+  .composer-actions {
+    justify-content: flex-end;
   }
 }
 </style>

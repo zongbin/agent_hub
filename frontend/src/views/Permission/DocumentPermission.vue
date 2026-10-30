@@ -3,6 +3,9 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { DocPermissionItem, UserItem } from '@/types/permission'
 import { permissionApi } from '@/api/permission'
+import { useResponsive } from '@/composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const permissions = ref<DocPermissionItem[]>([])
 const users = ref<UserItem[]>([])
@@ -116,26 +119,36 @@ onMounted(() => {
         <el-tag size="small" type="info">共 {{ permissions.length }} 条授权</el-tag>
       </div>
 
-      <el-table :data="permissions" v-loading="loading" stripe>
-        <el-table-column prop="documentName" label="文档名称" min-width="180" show-overflow-tooltip />
-        <el-table-column label="被授权人" width="140">
+      <el-table
+        :data="permissions"
+        v-loading="loading"
+        stripe
+        :size="isMobile ? 'small' : 'default'"
+      >
+        <el-table-column
+          prop="documentName"
+          label="文档名称"
+          :min-width="isMobile ? 130 : 180"
+          show-overflow-tooltip
+        />
+        <el-table-column label="被授权人" :width="isMobile ? 100 : 140">
           <template #default="{ row }">
             {{ row.granteeName || userNameMap(row.granteeId) }}
           </template>
         </el-table-column>
-        <el-table-column label="权限" width="100">
+        <el-table-column label="权限" :width="isMobile ? 78 : 100">
           <template #default="{ row }">
             <el-tag :type="row.permission === 'WRITE' ? 'warning' : 'success'" size="small">
               {{ row.permission === 'WRITE' ? '读写' : '只读' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="授权时间" width="180">
+        <el-table-column v-if="!isMobile" label="授权时间" width="180">
           <template #default="{ row }">
             {{ row.createdAt || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" :width="isMobile ? 76 : 100" fixed="right">
           <template #default="{ row }">
             <el-button link type="danger" size="small" @click="handleRevoke(row)">
               撤销
@@ -152,8 +165,12 @@ onMounted(() => {
     </div>
 
     <!-- 授权对话框 -->
-    <el-dialog v-model="dialogVisible" title="授予文档权限" width="480px">
-      <el-form :model="grantForm" label-width="100px">
+    <el-dialog v-model="dialogVisible" title="授予文档权限" :width="isMobile ? '92%' : '480px'">
+      <el-form
+        :model="grantForm"
+        :label-width="isMobile ? '0' : '100px'"
+        :label-position="isMobile ? 'top' : 'right'"
+      >
         <el-form-item label="文档">
           <span class="doc-name">{{ selectedDocName || '请选择文档' }}</span>
         </el-form-item>
@@ -233,5 +250,22 @@ onMounted(() => {
   font-size: 13px;
   color: var(--text);
   font-weight: 500;
+}
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .doc-card {
+    padding: 14px 6px 12px;
+  }
+
+  .card-header {
+    padding: 0 6px 12px;
+  }
+
+  .alert-desc {
+    font-size: 11.5px;
+  }
 }
 </style>

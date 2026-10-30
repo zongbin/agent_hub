@@ -181,6 +181,7 @@ const capabilities = ['RAG 语义检索', '多智能体编排', '细粒度权限
   justify-content: center;
   gap: 80px;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -307,6 +308,7 @@ const capabilities = ['RAG 语义检索', '多智能体编排', '细粒度权限
 .login-card {
   position: relative;
   width: 400px;
+  max-width: calc(100vw - 32px);
   padding: 42px 38px 34px;
   background: var(--veil-strong);
   backdrop-filter: blur(22px);
@@ -431,6 +433,53 @@ const capabilities = ['RAG 语义检索', '多智能体编排', '细粒度权限
 @media (max-width: 1100px) {
   .hero {
     display: none;
+  }
+}
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 60px 16px 56px;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
+  .login-panel {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 400px;
+    padding: 28px 22px 24px;
+  }
+
+  .login-header {
+    margin-bottom: 24px;
+  }
+
+  .logo {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    margin-bottom: 12px;
+  }
+
+  .logo-text {
+    font-size: 20px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .login-footer p {
+    font-size: 10px;
+    padding: 0 12px;
   }
 }
 </style>

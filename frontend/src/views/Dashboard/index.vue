@@ -434,4 +434,62 @@ const quickActions = [
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .hero-card {
+    padding: 20px 18px;
+    margin-bottom: 14px;
+  }
+
+  .hero-title {
+    font-size: 20px;
+  }
+
+  .hero-desc {
+    font-size: 12.5px;
+    margin-bottom: 16px;
+  }
+
+  .hero-actions {
+    flex-wrap: wrap;
+  }
+
+  .stats-row {
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .stat-card {
+    padding: 14px 14px 12px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+  }
+
+  .quick-grid {
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .quick-card {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .quick-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .capability-strip {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+}
 </style>

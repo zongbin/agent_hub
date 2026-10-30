@@ -4,8 +4,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, type UploadInstance } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { knowledgeApi } from '@/api/knowledge'
+import { useResponsive } from '@/composables/useResponsive'
 
 const router = useRouter()
+const { isMobile } = useResponsive()
 const uploadRef = ref<UploadInstance>()
 const uploading = ref(false)
 const uploadProgress = ref(0)
@@ -75,7 +77,12 @@ const steps = ['上传文件', '文本解析', '智能分块', '向量化入库'
         </div>
       </header>
 
-      <el-form :model="form" label-width="100px" class="upload-form">
+      <el-form
+        :model="form"
+        :label-width="isMobile ? '0' : '100px'"
+        :label-position="isMobile ? 'top' : 'right'"
+        class="upload-form"
+      >
         <el-form-item label="文件" required>
           <el-upload
             ref="uploadRef"
@@ -274,5 +281,44 @@ const steps = ['上传文件', '文本解析', '智能分块', '向量化入库'
 .submit-btn {
   font-weight: 600;
   letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   移动端自适应
+   ============================================================ */
+@media (max-width: 768px) {
+  .upload-card {
+    padding: 18px 16px 20px;
+  }
+
+  .upload-head {
+    gap: 10px;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+  }
+
+  .upload-head-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .upload-title {
+    font-size: 17px;
+  }
+
+  .upload-drop {
+    padding: 20px 0;
+  }
+
+  .drop-orb {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 10px;
+  }
+
+  .flow-steps {
+    gap: 6px;
+  }
 }
 </style>
