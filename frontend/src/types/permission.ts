@@ -21,11 +21,30 @@ export interface UserItem {
 export interface DocPermissionItem {
   id: number
   documentId: number
-  documentName: string
+  /** 文档标题（文档已删除时为「文档已删除」） */
+  documentTitle: string
+  /** 文档密级：PUBLIC / INTERNAL / CONFIDENTIAL */
+  documentSecurityLevel: string
   granteeId: number
+  /** 被授权人姓名 */
   granteeName: string
+  /** 被授权人用户名 */
+  granteeUsername: string
+  /** 被授权人角色 */
+  granteeRole: string
+  /** 权限类型：READ / WRITE */
   permission: string
+  /** 权限类型中文标签 */
+  permissionLabel: string
   createdAt: string
+}
+
+/** 分页文档授权响应 */
+export interface DocPermissionPage {
+  list: DocPermissionItem[]
+  total: number
+  page: number
+  size: number
 }
 
 /** 审计日志 */

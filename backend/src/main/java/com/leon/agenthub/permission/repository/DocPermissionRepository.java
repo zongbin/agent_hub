@@ -1,6 +1,8 @@
 package com.leon.agenthub.permission.repository;
 
 import com.leon.agenthub.permission.model.DocPermission;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -32,9 +34,19 @@ public interface DocPermissionRepository extends JpaRepository<DocPermission, Lo
     boolean existsByDocumentIdAndGranteeId(Long documentId, Long granteeId);
 
     /**
+     * 判断用户是否对指定文档拥有指定类型的授权（用于 WRITE 写权限判定）。
+     */
+    boolean existsByDocumentIdAndGranteeIdAndPermission(Long documentId, Long granteeId, String permission);
+
+    /**
      * 查询文档的授权列表。
      */
     List<DocPermission> findByDocumentId(Long documentId);
+
+    /**
+     * 分页查询全部授权，按授权时间倒序。
+     */
+    Page<DocPermission> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     /**
      * 删除用户对指定文档的授权。

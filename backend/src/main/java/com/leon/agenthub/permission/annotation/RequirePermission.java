@@ -34,4 +34,12 @@ public @interface RequirePermission {
      * 最低安全密级要求。
      */
     SecurityLevel minLevel() default SecurityLevel.PUBLIC;
+
+    /**
+     * 是否仅管理员（ADMIN）可访问。
+     *
+     * <p>用于权限管理这类「只有管理员能操作」的接口 —— 角色密级矩阵无法表达
+     * 「仅 ADMIN」，因此单独提供该开关。
+     */
+    boolean adminOnly() default false;
 }

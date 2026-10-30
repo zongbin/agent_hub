@@ -156,7 +156,7 @@ const quickActions = [
 
 <style scoped>
 .dashboard {
-  max-width: 1180px;
+  width: 100%;
   animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 

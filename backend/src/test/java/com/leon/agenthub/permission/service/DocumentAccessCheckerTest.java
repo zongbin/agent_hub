@@ -71,14 +71,54 @@ class DocumentAccessCheckerTest {
     }
 
     @Test
-    void grantDoesNotApplyToInternalDocumentForGuest() {
+    void grantAppliesToInternalDocumentForGuest() {
         when(docPermissionRepository.existsByDocumentIdAndGranteeId(10L, 99L)).thenReturn(true);
 
-        assertFalse(checker.canAccess(99L, "GUEST", 10L, "INTERNAL"));
+        assertTrue(checker.canAccess(99L, "GUEST", 10L, "INTERNAL"));
     }
 
     @Test
     void grantIsNotCheckedWhenRoleAlreadyAllows() {
         assertTrue(checker.canAccess(99L, "EDITOR", 10L, "INTERNAL"));
+    }
+
+    // ===== 写权限（READ / WRITE 授权语义） =====
+
+    @Test
+    void adminCanWriteAllLevels() {
+        assertTrue(checker.canWrite(99L, "ADMIN", 10L, "CONFIDENTIAL"));
+    }
+
+    @Test
+    void editorCanWritePublicAndInternal() {
+        assertTrue(checker.canWrite(99L, "EDITOR", 10L, "PUBLIC"));
+        assertTrue(checker.canWrite(99L, "EDITOR", 10L, "INTERNAL"));
+    }
+
+    @Test
+    void editorCannotWriteConfidentialWithoutGrant() {
+        assertFalse(checker.canWrite(99L, "EDITOR", 10L, "CONFIDENTIAL"));
+    }
+
+    @Test
+    void viewerAndGuestCannotWriteByRole() {
+        assertFalse(checker.canWrite(99L, "VIEWER", 10L, "PUBLIC"));
+        assertFalse(checker.canWrite(99L, "GUEST", 10L, "PUBLIC"));
+    }
+
+    @Test
+    void writeGrantAllowsWrite() {
+        when(docPermissionRepository.existsByDocumentIdAndGranteeIdAndPermission(10L, 99L, "WRITE"))
+                .thenReturn(true);
+
+        assertTrue(checker.canWrite(99L, "VIEWER", 10L, "CONFIDENTIAL"));
+    }
+
+    @Test
+    void readGrantDoesNotAllowWrite() {
+        when(docPermissionRepository.existsByDocumentIdAndGranteeIdAndPermission(10L, 99L, "WRITE"))
+                .thenReturn(false);
+
+        assertFalse(checker.canWrite(99L, "VIEWER", 10L, "CONFIDENTIAL"));
     }
 }

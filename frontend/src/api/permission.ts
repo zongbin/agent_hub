@@ -3,6 +3,7 @@ import type {
   RoleInfo,
   UserItem,
   DocPermissionItem,
+  DocPermissionPage,
   AuditLogItem,
   UpdateRoleRequest,
   UpdateStatusRequest,
@@ -40,7 +41,7 @@ export const permissionApi = {
   },
 
   /** 授予文档权限 */
-  grantDocumentPermission(documentId: number, data: GrantPermissionRequest): Promise<void> {
+  grantDocumentPermission(documentId: number, data: GrantPermissionRequest): Promise<DocPermissionItem> {
     return request.post(`/permissions/documents/${documentId}/grant`, data)
   },
 
@@ -49,7 +50,12 @@ export const permissionApi = {
     return request.delete(`/permissions/documents/${documentId}/revoke`, { data })
   },
 
-  /** 获取文档授权列表 */
+  /** 分页查询全部文档授权 */
+  listDocumentGrants(params: { page: number; size: number }): Promise<DocPermissionPage> {
+    return request.get('/permissions/documents/grants', { params })
+  },
+
+  /** 获取某个文档的授权列表 */
   listDocumentPermissions(documentId: number): Promise<DocPermissionItem[]> {
     return request.get(`/permissions/documents/${documentId}/permissions`)
   },

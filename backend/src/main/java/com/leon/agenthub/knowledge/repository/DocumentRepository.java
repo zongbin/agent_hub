@@ -18,11 +18,14 @@ import org.springframework.stereotype.Repository;
 public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     /**
-     * 分页查询文档列表（带权限过滤）。
+     * 分页查询文档列表（带权限过滤与关键字搜索）。
      *
      * <p>权限规则：ADMIN 看所有；EDITOR/VIEWER 看 PUBLIC+INTERNAL；GUEST 只看 PUBLIC；
-     * CONFIDENTIAL 仅 ADMIN 或 `doc_permissions` 中被授权的用户可见。
+     * 被单独授权（{@code doc_permissions}）的文档对授权用户可见，不受密级限制。
      *
+     * <p>关键字搜索范围：标题、摘要、文件类型（大小写不敏感）。
+     *
+     * @param keyword       关键字（可选，空串按不过滤处理）
      * @param securityLevel 密级筛选（可选）
      * @param statusCode    状态筛选（可选，取值见 {@link com.leon.agenthub.knowledge.enums.DocumentStatus}）
      * @param userId        当前用户 ID（用于文档级授权判断）
@@ -31,35 +34,22 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
      * @return 分页文档列表
      */
     @Query("SELECT d FROM Document d WHERE " +
+           "(:keyword IS NULL OR LOWER(d.title) LIKE '%' || LOWER(:keyword) || '%' " +
+           " OR LOWER(COALESCE(d.summary, '')) LIKE '%' || LOWER(:keyword) || '%' " +
+           " OR LOWER(COALESCE(d.fileType, '')) LIKE '%' || LOWER(:keyword) || '%') AND " +
            "(:securityLevel IS NULL OR d.securityLevel = :securityLevel) AND " +
            "(:statusCode IS NULL OR d.statusCode = :statusCode) AND " +
            "(:userRole = 'ADMIN' OR " +
+           " d.id IN (SELECT dp.documentId FROM DocPermission dp WHERE dp.granteeId = :userId) OR " +
            " d.securityLevel = 'PUBLIC' OR " +
-           " (:userRole IN ('EDITOR', 'VIEWER') AND d.securityLevel = 'INTERNAL') OR " +
-           " (d.securityLevel = 'CONFIDENTIAL' AND d.id IN " +
-           "   (SELECT dp.documentId FROM DocPermission dp WHERE dp.granteeId = :userId))) " +
+           " (:userRole IN ('EDITOR', 'VIEWER') AND d.securityLevel = 'INTERNAL')) " +
            "ORDER BY d.createdAt DESC")
-    Page<Document> findPageWithPermission(@Param("securityLevel") String securityLevel,
+    Page<Document> findPageWithPermission(@Param("keyword") String keyword,
+                                           @Param("securityLevel") String securityLevel,
                                            @Param("statusCode") Integer statusCode,
                                            @Param("userId") Long userId,
                                            @Param("userRole") String userRole,
                                            Pageable pageable);
-
-    /**
-     * 统计文档总数（带权限过滤）。
-     */
-    @Query("SELECT COUNT(d) FROM Document d WHERE " +
-           "(:securityLevel IS NULL OR d.securityLevel = :securityLevel) AND " +
-           "(:statusCode IS NULL OR d.statusCode = :statusCode) AND " +
-           "(:userRole = 'ADMIN' OR " +
-           " d.securityLevel = 'PUBLIC' OR " +
-           " (:userRole IN ('EDITOR', 'VIEWER') AND d.securityLevel = 'INTERNAL') OR " +
-           " (d.securityLevel = 'CONFIDENTIAL' AND d.id IN " +
-           "   (SELECT dp.documentId FROM DocPermission dp WHERE dp.granteeId = :userId)))")
-    long countWithPermission(@Param("securityLevel") String securityLevel,
-                             @Param("statusCode") Integer statusCode,
-                             @Param("userId") Long userId,
-                             @Param("userRole") String userRole);
 
     /**
      * 直接更新文档状态与错误信息（不加载实体）。

@@ -39,6 +39,8 @@ export interface DocumentUploadRequest {
 export interface DocumentQuery {
   page?: number
   size?: number
+  /** 关键字搜索（标题 / 摘要 / 文件类型） */
+  keyword?: string
   securityLevel?: string
   tag?: string
   status?: DocumentStatus

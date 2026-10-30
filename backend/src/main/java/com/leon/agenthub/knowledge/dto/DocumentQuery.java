@@ -14,6 +14,9 @@ import java.io.Serializable;
 @EqualsAndHashCode(callSuper = true)
 public class DocumentQuery extends PageQuery implements Serializable {
 
+    /** 关键字搜索（标题 / 摘要 / 文件类型，大小写不敏感，空串视为不过滤） */
+    private String keyword;
+
     /** 按密级筛选 */
     private String securityLevel;
 

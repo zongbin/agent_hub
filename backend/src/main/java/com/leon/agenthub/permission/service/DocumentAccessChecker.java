@@ -1,5 +1,6 @@
 package com.leon.agenthub.permission.service;
 
+import com.leon.agenthub.permission.enums.DocumentPermissionType;
 import com.leon.agenthub.permission.repository.DocPermissionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -14,7 +15,12 @@ import org.springframework.stereotype.Component;
  *   <li>GUEST：仅可访问 PUBLIC</li>
  * </ul>
  *
- * <p>文档级授权：CONFIDENTIAL 文档额外允许 `doc_permissions` 中被授权的用户访问。
+ * <p>文档级授权：{@code doc_permissions} 中的记录是管理员的显式授权，
+ * 对<b>任意密级</b>的文档都生效（与向量检索的过滤规则保持一致）：
+ * <ul>
+ *   <li>READ 授权 → 仅可读（查看、检索问答）</li>
+ *   <li>WRITE 授权 → 可读可写（删除等写操作）</li>
+ * </ul>
  *
  * <p>文档列表、详情、删除与问答检索共用此规则，避免权限逻辑漂移。
  */
@@ -47,10 +53,11 @@ public class DocumentAccessChecker {
     /**
      * 判断用户是否可访问指定文档（角色密级 + 文档级授权）。
      *
-     * <p>CONFIDENTIAL 文档在角色无权时，若 `doc_permissions` 中存在该用户的授权则放行。
+     * <p>角色无权访问时，若 {@code doc_permissions} 中存在该用户的授权记录则放行
+     * （READ 与 WRITE 授权都提供读权限）。
      *
      * @param userId        用户 ID
-     * @param userRole      用户角色代码
+     * @param userRole      当前用户角色代码
      * @param documentId    文档 ID
      * @param securityLevel 文档密级
      * @return true 表示可访问
@@ -59,9 +66,46 @@ public class DocumentAccessChecker {
         if (canAccess(userRole, securityLevel)) {
             return true;
         }
-        if (userId == null || documentId == null || !"CONFIDENTIAL".equals(securityLevel)) {
+        if (userId == null || documentId == null) {
             return false;
         }
         return docPermissionRepository.existsByDocumentIdAndGranteeId(documentId, userId);
+    }
+
+    /**
+     * 判断用户是否可写指定文档（角色写权限 + WRITE 级文档授权）。
+     *
+     * <p>判定顺序：
+     * <ol>
+     *   <li>ADMIN —— 全部可写</li>
+     *   <li>持有该文档的 <b>WRITE</b> 授权 —— 管理员显式授予写权限</li>
+     *   <li>角色本身对该密级有写权限（EDITOR 对 PUBLIC / INTERNAL）</li>
+     * </ol>
+     *
+     * <p>只读（READ）授权不会带来任何写权限。
+     *
+     * @param userId        用户 ID
+     * @param userRole      当前用户角色代码
+     * @param documentId    文档 ID
+     * @param securityLevel 文档密级
+     * @return true 表示可写
+     */
+    public boolean canWrite(Long userId, String userRole, Long documentId, String securityLevel) {
+        if ("ADMIN".equals(userRole)) {
+            return true;
+        }
+        if (userId != null && documentId != null
+                && docPermissionRepository.existsByDocumentIdAndGranteeIdAndPermission(
+                        documentId, userId, DocumentPermissionType.WRITE.getCode())) {
+            return true;
+        }
+        return canWriteByRole(userRole, securityLevel);
+    }
+
+    /**
+     * 角色本身是否对该密级有写权限（与 {@link PermissionService#canPerformAction} 的角色语义对齐）。
+     */
+    private boolean canWriteByRole(String userRole, String securityLevel) {
+        return "EDITOR".equals(userRole) && !"CONFIDENTIAL".equals(securityLevel);
     }
 }

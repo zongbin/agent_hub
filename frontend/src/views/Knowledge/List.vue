@@ -55,6 +55,7 @@ const loadDocuments = async () => {
     const res = await knowledgeApi.list({
       page: pagination.page,
       size: pagination.size,
+      keyword: searchKey.value.trim() || undefined,
       securityLevel: filterSecurity.value || undefined,
       status: filterStatus.value || undefined
     })
@@ -217,6 +218,7 @@ onMounted(() => {
           class="search-input"
           clearable
           @keyup.enter="handleSearch"
+          @clear="handleSearch"
         >
           <template #prefix>
             <el-icon><Search /></el-icon>

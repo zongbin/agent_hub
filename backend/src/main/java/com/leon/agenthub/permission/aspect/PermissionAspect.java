@@ -52,13 +52,21 @@ public class PermissionAspect {
             return;
         }
 
-        // 2. 角色密级匹配
+        // 2. 仅管理员可访问的接口
+        if (requirePermission.adminOnly()) {
+            log.warn("Non-admin role {} rejected for admin-only operation {}:{}",
+                    currentUserRole, requirePermission.resource(), requirePermission.action());
+            saveDeniedAuditLog(requirePermission.resource(), requirePermission.action(), "ADMIN");
+            throw new PermissionDeniedException("权限不足：该操作仅管理员可执行");
+        }
+
+        // 3. 角色密级匹配
         if (permissionService.canAccess(currentUserRole, minLevel)) {
             log.debug("Role {} passes security level {} check", currentUserRole, minLevel);
             return;
         }
 
-        // 3. 拒绝 — 记录审计日志
+        // 4. 拒绝 — 记录审计日志
         saveDeniedAuditLog(requirePermission.resource(), requirePermission.action(), minLevel.name());
         throw new PermissionDeniedException("权限不足：需要 " + minLevel + " 级别访问权限");
     }

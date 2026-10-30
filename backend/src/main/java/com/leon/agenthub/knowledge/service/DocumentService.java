@@ -43,7 +43,7 @@ public class DocumentService {
     /**
      * 分页查询文档列表（带权限过滤）。
      *
-     * @param query 查询条件（密级、状态、分页）
+     * @param query 查询条件（关键字、密级、状态、分页）
      * @return 当前用户可见的文档分页
      */
     @RequirePermission(resource = "DOCUMENT", action = "READ")
@@ -56,6 +56,7 @@ public class DocumentService {
         PageRequest pageRequest = PageRequest.of(page, size);
 
         Page<Document> result = documentRepository.findPageWithPermission(
+                trimToNull(query.getKeyword()),
                 query.getSecurityLevel(),
                 query.getStatus() == null ? null : query.getStatus().getCode(),
                 userId, userRole, pageRequest);
@@ -108,7 +109,7 @@ public class DocumentService {
         Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(404, "文档不存在"));
 
-        checkAccess(document, "删除");
+        checkWriteAccess(document, "删除");
 
         // 软删除：标记 deleted=1
         document.setDeleted(1);
@@ -121,7 +122,7 @@ public class DocumentService {
     }
 
     /**
-     * 文档级访问校验：角色密级 + 文档级授权。
+     * 文档级访问校验：角色密级 + 文档级授权（读）。
      */
     private void checkAccess(Document document, String action) {
         Long userId = securityContextUtil.getCurrentUserId();
@@ -129,5 +130,29 @@ public class DocumentService {
         if (!documentAccessChecker.canAccess(userId, userRole, document.getId(), document.getSecurityLevel())) {
             throw new BusinessException(403, "权限不足，无法" + action + "该文档");
         }
+    }
+
+    /**
+     * 文档级写权限校验：角色写权限 + WRITE 级文档级授权。
+     *
+     * <p>只读（READ）授权只能查看，不能删除等写操作。
+     */
+    private void checkWriteAccess(Document document, String action) {
+        Long userId = securityContextUtil.getCurrentUserId();
+        String userRole = securityContextUtil.getCurrentUserRole().getCode();
+        if (!documentAccessChecker.canWrite(userId, userRole, document.getId(), document.getSecurityLevel())) {
+            throw new BusinessException(403, "权限不足，无法" + action + "该文档（需要读写授权）");
+        }
+    }
+
+    /**
+     * 去除首尾空白，空串视为 null（避免空关键字把结果过滤成空集）。
+     */
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }
