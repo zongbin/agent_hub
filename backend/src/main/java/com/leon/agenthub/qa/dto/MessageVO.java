@@ -1,9 +1,11 @@
 package com.leon.agenthub.qa.dto;
 
-import lombok.Data;
-
 import java.time.OffsetDateTime;
 import java.util.List;
+
+import com.leon.agenthub.common.llm.ChatCitation;
+
+import lombok.Data;
 
 /**
  * 消息视图对象。
@@ -17,7 +19,7 @@ public class MessageVO {
 
     private String content;
 
-    private List<QaSource> sources;
+    private List<ChatCitation> sources;
 
     private Integer feedback;
 

@@ -100,6 +100,29 @@ public void delete(Long id) {
 }
 ```
 
+### RAG 实现规约（Spring AI 优先）
+
+项目里所有 **RAG 相关功能**（知识召回、查询改写、上下文组装、对话记忆、流式生成、引用溯源）
+**必须优先使用 Spring AI 框架里已经封装好的能力**，禁止自己重写一套。
+
+常用对应关系（Spring AI 1.0.x）：
+
+| 能力 | 优先使用 |
+|------|---------|
+| 向量召回（含过滤表达式） | `VectorStoreDocumentRetriever` / `VectorStore.similaritySearch(SearchRequest)` |
+| 查询改写 / 扩展 / 压缩 | `RewriteQueryTransformer`、`QueryExpander`、`QueryTransformer` |
+| 上下文组装与提示词 | `PromptTemplate` / `Prompt` / `ChatClient` |
+| 对话记忆 | `ChatMemory` + `MessageChatMemoryAdvisor` |
+| 引用溯源 | `QuestionAnswerAdvisor.RETRIEVED_DOCUMENTS` 等 Advisor 元数据 |
+| 文档解析 | `spring-ai-tika-document-reader`、`spring-ai-markdown-document-reader` |
+
+细则：
+
+- 只有 **Spring AI 没有对应能力** 时才允许自定义实现，并在类注释中写明原因。
+- 业务代码只负责「权限过滤 + 结果编排」（如 `DocumentAccessFilter`），不重复实现 Spring AI 已有的检索/组装逻辑。
+- 权限过滤统一通过 `SearchRequest.filterExpression(...)` 下推到向量库，**禁止**先全量召回再在 Java 侧过滤。
+- 返回给前端的结果用**结构化对象**（DTO/record），不要在 Controller 里手写 `HashMap` 拼装。
+
 ## Tech Stack
 
 | Layer | Technology |

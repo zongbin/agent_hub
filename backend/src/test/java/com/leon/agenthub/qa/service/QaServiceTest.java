@@ -1,7 +1,10 @@
 package com.leon.agenthub.qa.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.leon.agenthub.common.llm.ChatCitation;
 import com.leon.agenthub.common.llm.ChatService;
+import com.leon.agenthub.common.llm.ChatStreamResult;
+import com.leon.agenthub.qa.converter.QaConverter;
 import com.leon.agenthub.qa.model.ChatMemoryMessage;
 import com.leon.agenthub.qa.model.Conversation;
 import com.leon.agenthub.qa.repository.ChatMemoryMessageRepository;
@@ -13,6 +16,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,7 +30,6 @@ import static org.mockito.Mockito.when;
  */
 class QaServiceTest {
 
-    private KnowledgeRetriever knowledgeRetriever;
     private ChatService chatService;
     private ConversationRepository conversationRepository;
     private ChatMemoryMessageRepository messageRepository;
@@ -34,13 +37,13 @@ class QaServiceTest {
 
     @BeforeEach
     void setUp() {
-        knowledgeRetriever = mock(KnowledgeRetriever.class);
         chatService = mock(ChatService.class);
         conversationRepository = mock(ConversationRepository.class);
         messageRepository = mock(ChatMemoryMessageRepository.class);
-        qaService = new QaService(knowledgeRetriever, chatService, conversationRepository,
-                messageRepository, new ObjectMapper());
-        ReflectionTestUtils.setField(qaService, "snippetLength", 10);
+        QaConverter qaConverter = new QaConverter();
+        ReflectionTestUtils.setField(qaConverter, "snippetLength", 10);
+        qaService = new QaService(chatService, conversationRepository,
+                messageRepository, new ObjectMapper(), qaConverter);
 
         when(conversationRepository.save(any(Conversation.class))).thenAnswer(inv -> {
             Conversation c = inv.getArgument(0);
@@ -60,21 +63,36 @@ class QaServiceTest {
 
     @Test
     void askCreatesConversationAndStreamsAnswer() {
-        when(chatService.chatStream(anyString(), anyString())).thenReturn(Flux.just("答案"));
+        when(chatService.chatStream(anyString(), anyString()))
+                .thenReturn(new ChatStreamResult(Flux.just("答案"), List.of()));
 
-        QaService.QaResult result = qaService.ask("年假几天", null, 99L, "VIEWER");
+        QaService.QaResult result = qaService.ask("年假几天", null, 99L);
 
         assertNotNull(result.conversationId());
         assertTrue(result.conversationId().length() <= 64, "会话 ID 需符合 VARCHAR(64) 长度限制");
-        List<String> output = result.stream().collectList().block();
+        List<String> output = result.chat().content().collectList().block();
         assertTrue(output != null && output.size() == 1 && output.get(0).contains("答案"));
     }
 
     @Test
-    void chatMemoryKeyIsConversationId() {
-        when(chatService.chatStream(anyString(), anyString())).thenReturn(Flux.just("答案"));
+    void askReturnsCitationsTogetherWithAnswer() {
+        ChatCitation citation = new ChatCitation(12L, "员工手册", 2, "片段", "/knowledge/12");
+        when(chatService.chatStream(anyString(), anyString()))
+                .thenReturn(new ChatStreamResult(Flux.just("答案"), List.of(citation)));
 
-        QaService.QaResult result = qaService.ask("问题", null, 99L, "VIEWER");
+        QaService.QaResult result = qaService.ask("年假几天", null, 99L);
+
+        assertEquals(1, result.chat().citations().size());
+        assertEquals(12L, result.chat().citations().get(0).documentId());
+        assertEquals("/knowledge/12", result.chat().citations().get(0).documentUrl());
+    }
+
+    @Test
+    void chatMemoryKeyIsConversationId() {
+        when(chatService.chatStream(anyString(), anyString()))
+                .thenReturn(new ChatStreamResult(Flux.just("答案"), List.of()));
+
+        QaService.QaResult result = qaService.ask("问题", null, 99L);
 
         verify(chatService).chatStream("问题", result.conversationId());
     }

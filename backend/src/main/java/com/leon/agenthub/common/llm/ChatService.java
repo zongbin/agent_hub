@@ -5,9 +5,10 @@ import java.util.Map;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.chat.prompt.SystemPromptTemplate;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,8 +17,9 @@ import com.leon.agenthub.common.advisor.MyLoggerAdvisor;
 import com.leon.agenthub.common.advisor.SensitiveWordAdvisor;
 import com.leon.agenthub.common.client.LlmSummaryResult;
 import com.leon.agenthub.common.exception.BusinessException;
-import com.leon.agenthub.permission.repository.DocPermissionRepository;
-import com.leon.agenthub.qa.rag.RagAdvisorService;
+import com.leon.agenthub.permission.enums.UserRole;
+import com.leon.agenthub.qa.rag.RagContext;
+import com.leon.agenthub.qa.rag.RagRetriever;
 
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +28,7 @@ import reactor.core.publisher.Flux;
 /**
  * 对话服务 — 封装 Spring AI 的 {@link ChatClient}，底层走阿里云 DashScope qwen。
  *
- * <p>
- * 提供同步调用、流式调用和摘要标签生成功能。
+ * <p>提供同步调用、带知识库召回的流式调用和摘要标签生成功能。
  */
 @Slf4j
 @Service
@@ -35,33 +36,23 @@ public class ChatService {
 
     private final ChatClient chatClient;
 
-    private final VectorStore pgVectorStore;
+    /** RAG 检索器 — 提供参考资料与引用来源 */
+    private final RagRetriever ragRetriever;
 
-    // 保存 ChatClient.Builder，供 RagAdvisorService 构建查询重写器使用
-    private final ChatClient.Builder chatClientBuilder;
-
-    @Resource
-    private DocPermissionRepository docPermissionRepository;
     @Resource
     private SecurityContextUtil securityContextUtil;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public ChatService(ChatModel dashscopeChatModel, ChatMemory databaseChatMemory, VectorStore pgVectorStore) {
+    public ChatService(ChatModel dashscopeChatModel, ChatMemory databaseChatMemory, RagRetriever ragRetriever) {
 
-        String systemPrompt = """
-                你是企业知识助手，仅依据以下参考资料回答问题；若资料不足以回答，请明确说明无法回答，不要编造。
-                请给出答案，并在引用处标注来源编号，如 [1]、[2]。
-                """;
-        this.chatClientBuilder = ChatClient.builder(dashscopeChatModel);
-        this.chatClient = chatClientBuilder
-                .defaultSystem(systemPrompt)
+        this.chatClient = ChatClient.builder(dashscopeChatModel)
                 .defaultAdvisors(
                         new MessageChatMemoryAdvisor(databaseChatMemory),
                         new MyLoggerAdvisor(),
                         new SensitiveWordAdvisor())
                 .build();
-        this.pgVectorStore = pgVectorStore;
+        this.ragRetriever = ragRetriever;
     }
 
     /**
@@ -80,33 +71,39 @@ public class ChatService {
     }
 
     /**
-     * 流式调用 LLM，返回文本流。
+     * 流式调用 LLM，返回结构化结果（回答内容流 + 引用来源）。
      *
-     * @param prompt 提示词
-     * @return 文本内容的 Flux 流
+     * <p>参考资料由 Spring AI 的 RAG 组件召回后作为 system 消息注入，
+     * 引用来源与回答内容一起返回，由前端统一渲染（支持跳转到文档详情页）。
+     *
+     * @param question 用户问题
+     * @param chatId   会话 ID（用于多轮上下文）
+     * @return 回答内容流与引用来源
      */
-    public Flux<String> chatStream(String question, String chatId) {
+    public ChatStreamResult chatStream(String question, String chatId) {
 
         Long userId = securityContextUtil.getCurrentUserId();
-        String userRole = securityContextUtil.getCurrentUserRole().getCode();
+        UserRole userRole = securityContextUtil.getCurrentUserRole();
 
+        // 1. 权限感知召回参考资料
+        RagContext rag = ragRetriever.retrieve(question, userId, userRole);
+
+        // 2. 参考资料作为 system 消息注入（不放进 user 消息，避免污染对话记忆）
+        //    注意：请求级 system 会覆盖客户端默认 system，因此这里需要与系统提示词拼接
         Flux<String> response = chatClient.prompt()
+                .system(SystemPromptFactory.getQaSystemPrompt(question, rag.contextText()))
                 .user(question)
                 .advisors(spec -> spec
                         .param(MessageChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)
                         .param(MessageChatMemoryAdvisor.CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
-                // 从pgsql向量库中检索内容
-                .advisors(
-                        new RagAdvisorService(pgVectorStore, userId + "", userRole, docPermissionRepository, chatClientBuilder)
-                                .getAdvisor()
-                )
                 .stream()
                 .content();
         // 把模型服务的原始异常（如账户欠费 Arrearage、限流）转成可读的业务异常
-        return response.onErrorMap(e -> {
+        Flux<String> stream = response.onErrorMap(e -> {
             log.error("LLM stream call failed: {}", e.getMessage(), e);
             return new BusinessException(500, "模型服务调用失败：" + rootMessageOf(e));
         });
+        return new ChatStreamResult(stream, rag.citations());
     }
 
     /**

@@ -1,15 +1,21 @@
 package com.leon.agenthub.qa.controller;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import com.leon.agenthub.auth.security.SecurityContextUtil;
 import com.leon.agenthub.common.exception.BusinessException;
 import com.leon.agenthub.common.response.R;
 import com.leon.agenthub.qa.dto.ConversationVO;
 import com.leon.agenthub.qa.dto.MessageVO;
+import com.leon.agenthub.qa.dto.QaAnswerVO;
+import com.leon.agenthub.qa.dto.QaDeltaVO;
+import com.leon.agenthub.qa.dto.QaErrorVO;
 import com.leon.agenthub.qa.dto.QaFeedbackRequest;
 import com.leon.agenthub.qa.dto.QaRequest;
-import com.leon.agenthub.qa.dto.QaSource;
 import com.leon.agenthub.qa.service.QaService;
-import com.leon.agenthub.permission.annotation.RequirePermission;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -21,12 +27,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 智能问答控制器 — 流式问答、会话管理与答案反馈。
@@ -47,10 +47,12 @@ public class QaController {
     private final SecurityContextUtil securityContextUtil;
 
     /**
-     * 流式问答 — 依次推送 source、delta、done/error 事件。
+     * 流式问答 — 依次推送 delta、done/error 事件。
+     *
+     * <p>引用来源不单独提前推送，而是在回答完成后随 done 事件一起返回，
+     * 由前端统一渲染（可跳转到对应文档详情页）。
      */
     @PostMapping(value = "/ask", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    @RequirePermission(resource = "QA", action = "READ")
     public SseEmitter ask(@RequestBody QaRequest request) {
         String question = request == null ? null : request.getQuestion();
         if (question == null || question.isBlank()) {
@@ -61,8 +63,7 @@ public class QaController {
         }
 
         Long userId = securityContextUtil.getCurrentUserId();
-        String userRole = securityContextUtil.getCurrentUserRole().getCode();
-        QaService.QaResult result = qaService.ask(question, request.getConversationId(), userId, userRole);
+        QaService.QaResult result = qaService.ask(question, request.getConversationId(), userId);
 
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         AtomicBoolean closed = new AtomicBoolean(false);
@@ -75,24 +76,16 @@ public class QaController {
             log.warn("SSE connection error: {}", e.getMessage());
         });
 
-        try {
-            // 1. 先推送引用来源与会话 ID
-            emitter.send(SseEmitter.event().name("source").data(sourcePayload(result)));
-        } catch (IOException e) {
-            emitter.completeWithError(e);
-            return emitter;
-        }
-
         StringBuilder answer = new StringBuilder();
-        // 2. 逐段推送答案增量，结束后保存回答并推送 done
-        result.stream().subscribe(
+        // 逐段推送答案增量，结束后连同引用来源一起推送 done
+        result.chat().content().subscribe(
                 delta -> {
                     if (closed.get()) {
                         return;
                     }
                     answer.append(delta);
                     try {
-                        emitter.send(SseEmitter.event().name("delta").data(deltaPayload(delta)));
+                        emitter.send(SseEmitter.event().name("delta").data(QaDeltaVO.of(delta)));
                     } catch (IOException e) {
                         if (closed.compareAndSet(false, true)) {
                             emitter.completeWithError(e);
@@ -105,7 +98,7 @@ public class QaController {
                         return;
                     }
                     try {
-                        emitter.send(SseEmitter.event().name("error").data(errorPayload(error.getMessage())));
+                        emitter.send(SseEmitter.event().name("error").data(QaErrorVO.of(error.getMessage())));
                     } catch (IOException ignored) {
                         // 连接已断开，无需处理
                     }
@@ -115,13 +108,20 @@ public class QaController {
                     if (!closed.compareAndSet(false, true)) {
                         return;
                     }
-                    Long messageId = qaService.saveAssistantMessage(
-                            result.conversationId(), answer.toString(), result.sources());
                     try {
+                        Long messageId = qaService.saveAssistantMessage(
+                                result.conversationId(), answer.toString(), result.chat().citations());
                         emitter.send(SseEmitter.event().name("done")
-                                .data(donePayload(result.conversationId(), messageId)));
-                    } catch (IOException ignored) {
-                        // 连接已断开，无需处理
+                                .data(buildAnswerVO(result, messageId, answer.toString())));
+                    } catch (Exception e) {
+                        // 保存引用来源或推送失败：给出可读错误，避免异常被静默丢弃
+                        log.error("保存回答或推送结果失败: {}", e.getMessage(), e);
+                        try {
+                            emitter.send(SseEmitter.event().name("error")
+                                    .data(QaErrorVO.of("回答已生成，但保存引用来源失败：" + e.getMessage())));
+                        } catch (IOException ignored) {
+                            // 连接已断开，无需处理
+                        }
                     }
                     emitter.complete();
                 }
@@ -131,10 +131,9 @@ public class QaController {
     }
 
     /**
-     * 提交答案反馈。
+     * 提交回答反馈。
      */
     @PostMapping("/feedback")
-    @RequirePermission(resource = "QA", action = "READ")
     public R<Void> feedback(@RequestBody QaFeedbackRequest request) {
         if (request == null || request.getMessageId() == null) {
             throw new BusinessException(400, "messageId 不能为空");
@@ -150,7 +149,6 @@ public class QaController {
      * 查询当前用户的会话列表。
      */
     @GetMapping("/conversations")
-    @RequirePermission(resource = "QA", action = "READ")
     public R<List<ConversationVO>> conversations() {
         return R.ok(qaService.listConversations(securityContextUtil.getCurrentUserId()));
     }
@@ -159,7 +157,6 @@ public class QaController {
      * 查询某会话的消息列表。
      */
     @GetMapping("/conversations/{id}/messages")
-    @RequirePermission(resource = "QA", action = "READ")
     public R<List<MessageVO>> messages(@PathVariable String id) {
         return R.ok(qaService.listMessages(id, securityContextUtil.getCurrentUserId()));
     }
@@ -168,45 +165,20 @@ public class QaController {
      * 删除会话及其消息。
      */
     @DeleteMapping("/conversations/{id}")
-    @RequirePermission(resource = "QA", action = "READ")
     public R<Void> deleteConversation(@PathVariable String id) {
         qaService.deleteConversation(id, securityContextUtil.getCurrentUserId());
         return R.ok();
     }
 
-    private Map<String, Object> sourcePayload(QaService.QaResult result) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("conversationId", result.conversationId());
-        List<Map<String, Object>> sources = result.sources().stream().map(this::toSourceMap).toList();
-        payload.put("sources", sources);
-        return payload;
-    }
-
-    private Map<String, Object> toSourceMap(QaSource source) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("documentId", source.getDocumentId());
-        map.put("title", source.getTitle());
-        map.put("chunkIndex", source.getChunkIndex());
-        map.put("snippet", source.getSnippet());
-        return map;
-    }
-
-    private Map<String, Object> deltaPayload(String content) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("content", content);
-        return payload;
-    }
-
-    private Map<String, Object> donePayload(String conversationId, Long messageId) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("conversationId", conversationId);
-        payload.put("messageId", messageId);
-        return payload;
-    }
-
-    private Map<String, Object> errorPayload(String message) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("message", message == null ? "问答处理失败" : message);
-        return payload;
+    /**
+     * 组装最终结果 —— 回答内容与引用来源一起返回。
+     */
+    private QaAnswerVO buildAnswerVO(QaService.QaResult result, Long messageId, String answer) {
+        QaAnswerVO vo = new QaAnswerVO();
+        vo.setConversationId(result.conversationId());
+        vo.setMessageId(messageId);
+        vo.setAnswer(answer);
+        vo.setSources(result.chat().citations());
+        return vo;
     }
 }

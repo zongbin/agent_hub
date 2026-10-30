@@ -105,15 +105,17 @@ const sendMessage = async () => {
       question,
       currentConversationId.value,
       {
-        onSource: (conversationId, sources) => {
-          currentConversationId.value = conversationId
-          assistant.sources = sources
-        },
         onDelta: (content) => {
           assistant.content += content
         },
-        onDone: (_conversationId, messageId) => {
-          assistant.id = messageId
+        onDone: (answer) => {
+          // 回答内容与引用来源一起到达，一次性渲染
+          if (answer.conversationId) {
+            currentConversationId.value = answer.conversationId
+          }
+          assistant.content = answer.answer || assistant.content
+          assistant.sources = answer.sources ?? []
+          assistant.id = answer.messageId
           assistant.streaming = false
           loadConversations()
         },
@@ -147,9 +149,10 @@ const submitFeedback = async (message: ChatMessage, useful: boolean) => {
   }
 }
 
-const openDocument = (documentId: number) => {
-  if (documentId) {
-    router.push(`/knowledge/${documentId}`)
+const openDocument = (source: QaSource) => {
+  const path = source.documentUrl || (source.documentId ? `/knowledge/${source.documentId}` : '')
+  if (path) {
+    router.push(path)
   }
 }
 
@@ -281,10 +284,10 @@ onMounted(() => {
                   v-for="(s, si) in m.sources"
                   :key="si"
                   class="source-chip"
-                  @click="openDocument(s.documentId)"
+                  @click="openDocument(s)"
                 >
                   <span class="source-index">{{ si + 1 }}</span>
-                  {{ s.title }} · 第 {{ s.chunkIndex + 1 }} 段
+                  {{ s.title }}<template v-if="s.chunkIndex != null"> · 第 {{ s.chunkIndex + 1 }} 段</template>
                 </div>
               </div>
             </div>

@@ -6,6 +6,16 @@ export interface QaSource {
   title: string
   chunkIndex: number
   snippet: string
+  /** 文档详情页地址（可直接跳转） */
+  documentUrl?: string
+}
+
+/** 问答结果 — 回答内容与引用来源一起返回 */
+export interface QaAnswer {
+  conversationId: string
+  messageId: number
+  answer: string
+  sources: QaSource[]
 }
 
 /** 会话 */
@@ -28,12 +38,10 @@ export interface Message {
 
 /** SSE 回调集合 */
 export interface QaStreamHandlers {
-  /** 引用来源到达（含 conversationId） */
-  onSource: (conversationId: string, sources: QaSource[]) => void
   /** 答案增量 */
   onDelta: (content: string) => void
-  /** 生成完成（含 messageId） */
-  onDone: (conversationId: string, messageId: number) => void
+  /** 生成完成（回答内容与引用来源一起到达） */
+  onDone: (answer: QaAnswer) => void
   /** 发生错误 */
   onError: (message: string) => void
 }
@@ -189,20 +197,16 @@ function dispatchEvent(event: string, rawData: string, handlers: QaStreamHandler
   }
 
   switch (event) {
-    case 'source':
-      handlers.onSource(
-        String(payload.conversationId ?? ''),
-        (payload.sources as QaSource[]) ?? []
-      )
-      break
     case 'delta':
       handlers.onDelta(String(payload.content ?? ''))
       break
     case 'done':
-      handlers.onDone(
-        String(payload.conversationId ?? ''),
-        Number(payload.messageId ?? 0)
-      )
+      handlers.onDone({
+        conversationId: String(payload.conversationId ?? ''),
+        messageId: Number(payload.messageId ?? 0),
+        answer: String(payload.answer ?? ''),
+        sources: (payload.sources as QaSource[]) ?? []
+      })
       break
     case 'error':
       handlers.onError(String(payload.message ?? '问答处理失败'))

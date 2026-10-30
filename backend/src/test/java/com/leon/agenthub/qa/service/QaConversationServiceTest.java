@@ -2,7 +2,10 @@ package com.leon.agenthub.qa.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.leon.agenthub.common.exception.BusinessException;
+import com.leon.agenthub.common.llm.ChatCitation;
 import com.leon.agenthub.common.llm.ChatService;
+import com.leon.agenthub.common.llm.ChatStreamResult;
+import com.leon.agenthub.qa.converter.QaConverter;
 import com.leon.agenthub.qa.dto.ConversationVO;
 import com.leon.agenthub.qa.dto.MessageVO;
 import com.leon.agenthub.qa.model.ChatMemoryMessage;
@@ -36,7 +39,6 @@ import static org.mockito.Mockito.when;
  */
 class QaConversationServiceTest {
 
-    private KnowledgeRetriever knowledgeRetriever;
     private ChatService chatService;
     private ConversationRepository conversationRepository;
     private ChatMemoryMessageRepository messageRepository;
@@ -49,15 +51,13 @@ class QaConversationServiceTest {
 
     @BeforeEach
     void setUp() {
-        knowledgeRetriever = mock(KnowledgeRetriever.class);
         chatService = mock(ChatService.class);
         conversationRepository = mock(ConversationRepository.class);
         messageRepository = mock(ChatMemoryMessageRepository.class);
-        qaService = new QaService(knowledgeRetriever, chatService, conversationRepository,
-                messageRepository, new ObjectMapper());
-        ReflectionTestUtils.setField(qaService, "snippetLength", 500);
-        ReflectionTestUtils.setField(qaService, "historySize", 6);
-        ReflectionTestUtils.setField(qaService, "historyMsgLength", 200);
+        QaConverter qaConverter = new QaConverter();
+        ReflectionTestUtils.setField(qaConverter, "snippetLength", 500);
+        qaService = new QaService(chatService, conversationRepository,
+                messageRepository, new ObjectMapper(), qaConverter);
 
         conversations.clear();
         messages.clear();
@@ -104,9 +104,10 @@ class QaConversationServiceTest {
 
     @Test
     void firstAskCreatesConversationTitledByQuestion() {
-        when(chatService.chatStream(anyString(), anyString())).thenReturn(Flux.just("答案"));
+        when(chatService.chatStream(anyString(), anyString()))
+                .thenReturn(new ChatStreamResult(Flux.just("答案"), List.of()));
 
-        QaService.QaResult result = qaService.ask("年假有几天？", null, 99L, "VIEWER");
+        QaService.QaResult result = qaService.ask("年假有几天？", null, 99L);
 
         assertNotNull(result.conversationId());
         assertEquals(1, conversations.size());
@@ -117,7 +118,8 @@ class QaConversationServiceTest {
 
     @Test
     void askWithExistingConversationReusesIt() {
-        when(chatService.chatStream(anyString(), anyString())).thenReturn(Flux.just("答案"));
+        when(chatService.chatStream(anyString(), anyString()))
+                .thenReturn(new ChatStreamResult(Flux.just("答案"), List.of()));
 
         Conversation existing = new Conversation();
         existing.setId("conv-7");
@@ -125,7 +127,7 @@ class QaConversationServiceTest {
         existing.setTitle("已有会话");
         conversations.add(existing);
 
-        QaService.QaResult result = qaService.ask("继续问", "conv-7", 99L, "VIEWER");
+        QaService.QaResult result = qaService.ask("继续问", "conv-7", 99L);
 
         assertEquals("conv-7", result.conversationId());
         assertEquals(1, conversations.size());
@@ -140,15 +142,16 @@ class QaConversationServiceTest {
         conversations.add(other);
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> qaService.ask("问题", "conv-8", 99L, "VIEWER"));
+                () -> qaService.ask("问题", "conv-8", 99L));
         assertEquals(404, ex.getCode());
     }
 
     @Test
     void chatMemoryUsesConversationIdAsString() {
-        when(chatService.chatStream(anyString(), anyString())).thenReturn(Flux.just("答案"));
+        when(chatService.chatStream(anyString(), anyString()))
+                .thenReturn(new ChatStreamResult(Flux.just("答案"), List.of()));
 
-        QaService.QaResult result = qaService.ask("问题", null, 99L, "VIEWER");
+        QaService.QaResult result = qaService.ask("问题", null, 99L);
 
         verify(chatService).chatStream("问题", result.conversationId());
     }
@@ -161,7 +164,7 @@ class QaConversationServiceTest {
         conv.setTitle("会话");
         conversations.add(conv);
 
-        Long messageId = qaService.saveAssistantMessage("conv-7", "回答内容", List.of());
+        Long messageId = qaService.saveAssistantMessage("conv-7", "回答内容", List.<ChatCitation>of());
 
         assertNotNull(messageId);
         ChatMemoryMessage saved = messages.stream()

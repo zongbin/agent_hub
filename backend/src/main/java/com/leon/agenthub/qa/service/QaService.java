@@ -1,26 +1,27 @@
 package com.leon.agenthub.qa.service;
 
+import java.util.List;
+import java.util.UUID;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.leon.agenthub.common.exception.BusinessException;
+import com.leon.agenthub.common.llm.ChatCitation;
 import com.leon.agenthub.common.llm.ChatService;
+import com.leon.agenthub.common.llm.ChatStreamResult;
+import com.leon.agenthub.permission.annotation.RequirePermission;
+import com.leon.agenthub.qa.converter.QaConverter;
 import com.leon.agenthub.qa.dto.ConversationVO;
 import com.leon.agenthub.qa.dto.MessageVO;
-import com.leon.agenthub.qa.dto.QaSource;
-import com.leon.agenthub.qa.model.Conversation;
+import com.leon.agenthub.qa.enums.MessageRole;
 import com.leon.agenthub.qa.model.ChatMemoryMessage;
-import com.leon.agenthub.qa.repository.ConversationRepository;
+import com.leon.agenthub.qa.model.Conversation;
 import com.leon.agenthub.qa.repository.ChatMemoryMessageRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.ai.document.Document;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
+import com.leon.agenthub.qa.repository.ConversationRepository;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 问答服务 — 编排会话、检索、多轮上下文与 LLM 流式生成。
@@ -29,47 +30,57 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class QaService {
 
-    private final KnowledgeRetriever knowledgeRetriever;
     private final ChatService chatService;
     private final ConversationRepository conversationRepository;
     private final ChatMemoryMessageRepository messageRepository;
     private final ObjectMapper objectMapper;
-
-    @Value("${agenthub.qa.snippet-length:500}")
-    private int snippetLength;
-
-    @Value("${agenthub.qa.history-size:6}")
-    private int historySize;
-
-    @Value("${agenthub.qa.history-msg-length:200}")
-    private int historyMsgLength;
+    private final QaConverter qaConverter;
 
     /**
-     * 执行一次问答：解析会话、保存提问、加载历史、检索并流式生成。
+     * 执行一次问答：解析会话、检索参考资料并流式生成。
+     *
+     * <p>参考资料与回答内容一起返回（{@link ChatStreamResult}），不提前推送给前端。
      *
      * @param question       用户问题
      * @param conversationId 会话 ID（可为空，空则新建会话）
      * @param userId         当前用户 ID
-     * @param userRole       当前用户角色代码
-     * @return 问答结果（含会话 ID、引用来源与答案流）
+     * @return 问答结果（含会话 ID、回答内容流与引用来源）
      */
-    public QaResult ask(String question, String conversationId, Long userId, String userRole) {
+    @RequirePermission(resource = "QA", action = "READ")
+    public QaResult ask(String question, String conversationId, Long userId) {
         // 新增or 获取 对话信息
         Conversation conversation = resolveConversation(conversationId, question, userId);
 
-        // List<QaSource> sources = hits.stream().map(this::toSource).toList();
-
-        List<QaSource> sources = new ArrayList<>();
-
-        Flux<String> stream = chatService.chatStream(question, conversation.getId());
-        return new QaResult(conversation.getId(), sources, stream);
+        // 回答内容与引用来源一起返回，由前端在回答完成后统一渲染
+        ChatStreamResult chat = chatService.chatStream(question, conversation.getId());
+        return new QaResult(conversation.getId(), chat);
     }
 
     /**
-     * 流式完成后保存回答消息，返回消息 ID（供反馈使用）。
+     * 流式完成后补充引用来源，返回消息 ID（供反馈使用）。
+     *
+     * <p>回答正文已由 Spring AI 的对话记忆 Advisor 落库，这里只把引用来源补写到同一条
+     * assistant 消息上，避免重复入库。
+     *
+     * <p>注意：本方法由 SSE 完成回调在异步线程中调用，不在 HTTP 请求线程内，
+     * 此时没有登录态（SecurityContext 为空），因此<b>不能</b>标注 {@code @RequirePermission}，
+     * 否则权限切面会抛「未登录」。权限已在 {@link #ask} 入口处校验过。
      */
-    public Long saveAssistantMessage(String conversationId, String answer, List<QaSource> sources) {
-        Long messageId = saveMessage(conversationId, "assistant", answer, serializeSources(sources));
+    @Transactional(rollbackFor = Exception.class)
+    public Long saveAssistantMessage(String conversationId, String answer, List<ChatCitation> citations) {
+        ChatMemoryMessage message = messageRepository
+                .findFirstByConversationIdAndRoleOrderByIdDesc(conversationId, MessageRole.ASSISTANT.name())
+                .filter(m -> answer.equals(m.getContent()))
+                .orElse(null);
+        if (message == null) {
+            // 兜底：回答未落库时（异常中断等）补写一条完整消息
+            message = new ChatMemoryMessage();
+            message.setConversationId(conversationId);
+            message.setRole(MessageRole.ASSISTANT.name());
+            message.setContent(answer);
+        }
+        message.setSources(serializeSources(citations));
+        Long messageId = messageRepository.save(message).getId();
         conversationRepository.findById(conversationId).ifPresent(this::touchConversation);
         return messageId;
     }
@@ -77,6 +88,8 @@ public class QaService {
     /**
      * 提交回答反馈。
      */
+    @Transactional(rollbackFor = Exception.class)
+    @RequirePermission(resource = "QA", action = "READ")
     public void saveFeedback(Long messageId, Boolean useful) {
         messageRepository.findById(messageId).ifPresent(m -> {
             m.setFeedback(Boolean.TRUE.equals(useful) ? 1 : 0);
@@ -87,25 +100,29 @@ public class QaService {
     /**
      * 查询用户的会话列表。
      */
+    @RequirePermission(resource = "QA", action = "READ")
     public List<ConversationVO> listConversations(Long userId) {
         return conversationRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
-                .map(this::toConversationVO)
+                .map(qaConverter::toConversationVO)
                 .toList();
     }
 
     /**
      * 查询某会话的消息列表。
      */
+    @RequirePermission(resource = "QA", action = "READ")
     public List<MessageVO> listMessages(String conversationId, Long userId) {
         Conversation conversation = requireOwnedConversation(conversationId, userId);
         return messageRepository.findByConversationIdOrderByIdAsc(conversation.getId()).stream()
-                .map(this::toMessageVO)
+                .map(m -> qaConverter.toMessageVO(m, deserializeSources(m.getSources())))
                 .toList();
     }
 
     /**
      * 删除会话及其消息。
      */
+    @Transactional(rollbackFor = Exception.class)
+    @RequirePermission(resource = "QA", action = "READ")
     public void deleteConversation(String conversationId, Long userId) {
         Conversation conversation = requireOwnedConversation(conversationId, userId);
         messageRepository.deleteByConversationId(conversation.getId());
@@ -135,78 +152,27 @@ public class QaService {
         return conversation;
     }
 
-    private Long saveMessage(String conversationId, String role, String content, String sources) {
-        ChatMemoryMessage message = new ChatMemoryMessage();
-        message.setConversationId(conversationId);
-        message.setRole(role.toUpperCase());
-        message.setContent(content);
-        message.setSources(sources);
-        return messageRepository.save(message).getId();
-    }
-
-    private QaSource toSource(Document doc) {
-        QaSource source = new QaSource();
-        source.setDocumentId(documentIdOf(doc));
-        source.setTitle(titleOf(doc));
-        source.setChunkIndex(chunkIndexOf(doc));
-        String content = doc.getText() == null ? "" : doc.getText();
-        source.setSnippet(truncate(content, snippetLength));
-        return source;
-    }
-
-    private ConversationVO toConversationVO(Conversation conversation) {
-        ConversationVO vo = new ConversationVO();
-        vo.setId(conversation.getId());
-        vo.setTitle(conversation.getTitle());
-        vo.setCreatedAt(conversation.getCreatedAt());
-        vo.setUpdatedAt(conversation.getUpdatedAt());
-        return vo;
-    }
-
-    private MessageVO toMessageVO(ChatMemoryMessage message) {
-        MessageVO vo = new MessageVO();
-        vo.setId(message.getId());
-        vo.setRole(message.getRole() == null ? null : message.getRole().toLowerCase());
-        vo.setContent(message.getContent());
-        vo.setSources(deserializeSources(message.getSources()));
-        vo.setFeedback(message.getFeedback());
-        vo.setCreatedAt(message.getCreatedAt());
-        return vo;
-    }
-
-    private String serializeSources(List<QaSource> sources) {
+    private String serializeSources(List<ChatCitation> citations) {
+        if (citations == null || citations.isEmpty()) {
+            return "[]";
+        }
         try {
-            return objectMapper.writeValueAsString(sources);
+            return objectMapper.writeValueAsString(citations);
         } catch (Exception e) {
             return "[]";
         }
     }
 
-    private List<QaSource> deserializeSources(String json) {
+    private List<ChatCitation> deserializeSources(String json) {
         if (json == null || json.isBlank()) {
             return List.of();
         }
         try {
-            return objectMapper.readValue(json, new TypeReference<List<QaSource>>() {
+            return objectMapper.readValue(json, new TypeReference<List<ChatCitation>>() {
             });
         } catch (Exception e) {
             return List.of();
         }
-    }
-
-    private Long documentIdOf(Document doc) {
-        Object value = doc.getMetadata().get("documentId");
-        return value instanceof Number number ? number.longValue() : null;
-    }
-
-    private Integer chunkIndexOf(Document doc) {
-        Object value = doc.getMetadata().get("chunkIndex");
-        return value instanceof Number number ? number.intValue() : null;
-    }
-
-    private String titleOf(Document doc) {
-        Object value = doc.getMetadata().get("title");
-        return value == null ? "" : value.toString();
     }
 
     private String truncate(String text, int maxLength) {
@@ -220,9 +186,8 @@ public class QaService {
      * 一次问答的内部结果。
      *
      * @param conversationId 会话 ID
-     * @param sources        引用来源
-     * @param stream         答案文本流
+     * @param chat           回答内容流与引用来源（一起返回）
      */
-    public record QaResult(String conversationId, List<QaSource> sources, Flux<String> stream) {
+    public record QaResult(String conversationId, ChatStreamResult chat) {
     }
 }

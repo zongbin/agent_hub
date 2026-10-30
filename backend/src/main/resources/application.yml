@@ -107,9 +107,9 @@ agenthub:
     summary-chunks: ${KNOWLEDGE_SUMMARY_CHUNKS:1}
   qa:
     top-k: 5              # 检索返回的分块数
+    similarity-threshold: 0.7 #相似度阈值
     snippet-length: 500   # 前端展示的引用片段长度
-    history-size: 6       # 携带进 prompt 的历史消息条数
-    history-msg-length: 200  # 历史消息在 prompt 中的截断长度
+    query-rewrite-enabled: true  # 是否用 LLM 改写查询后再检索（关闭可省一次模型调用）
 
 # Knife4j / OpenAPI 文档
 springdoc:
