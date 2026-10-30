@@ -34,16 +34,16 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
      * @return 分页文档列表
      */
     /**
-     * 使用原生 SQL：数据库中 title/summary/file_type 列实际为 bytea 类型
-     * （schema.sql 声明为 TEXT/VARCHAR，但已有数据未按规范迁移），
-     * 需用 convert_from(col, 'UTF8') 显式将 bytea 转为 text，
+     * 使用原生 SQL：数据库中 summary 列为 bytea 类型（schema.sql 声明为 TEXT），
+     * 需用 convert_from(d.summary, 'UTF8') 显式将 bytea 转为 text，
      * 否则 LOWER() 会报 "function lower(bytea) does not exist"。
+     * title 与 file_type 为 character varying，直接使用 LOWER() 即可。
      */
     @Query(value = "SELECT d.* FROM documents d WHERE " +
            "d.deleted = 0 AND " +
-           "(:keyword IS NULL OR LOWER(convert_from(d.title, 'UTF8')) LIKE '%' || LOWER(:keyword) || '%' " +
+           "(:keyword IS NULL OR LOWER(d.title) LIKE '%' || LOWER(:keyword) || '%' " +
            " OR LOWER(convert_from(COALESCE(d.summary, ''::bytea), 'UTF8')) LIKE '%' || LOWER(:keyword) || '%' " +
-           " OR LOWER(convert_from(COALESCE(d.file_type, ''::bytea), 'UTF8')) LIKE '%' || LOWER(:keyword) || '%') AND " +
+           " OR LOWER(d.file_type) LIKE '%' || LOWER(:keyword) || '%') AND " +
            "(:securityLevel IS NULL OR d.security_level = :securityLevel) AND " +
            "(:statusCode IS NULL OR d.status = :statusCode) AND " +
            "(:userRole = 'ADMIN' OR " +
@@ -53,9 +53,9 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
            "ORDER BY d.created_at DESC",
            countQuery = "SELECT COUNT(d.*) FROM documents d WHERE " +
            "d.deleted = 0 AND " +
-           "(:keyword IS NULL OR LOWER(convert_from(d.title, 'UTF8')) LIKE '%' || LOWER(:keyword) || '%' " +
+           "(:keyword IS NULL OR LOWER(d.title) LIKE '%' || LOWER(:keyword) || '%' " +
            " OR LOWER(convert_from(COALESCE(d.summary, ''::bytea), 'UTF8')) LIKE '%' || LOWER(:keyword) || '%' " +
-           " OR LOWER(convert_from(COALESCE(d.file_type, ''::bytea), 'UTF8')) LIKE '%' || LOWER(:keyword) || '%') AND " +
+           " OR LOWER(d.file_type) LIKE '%' || LOWER(:keyword) || '%') AND " +
            "(:securityLevel IS NULL OR d.security_level = :securityLevel) AND " +
            "(:statusCode IS NULL OR d.status = :statusCode) AND " +
            "(:userRole = 'ADMIN' OR " +
