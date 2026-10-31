@@ -1,0 +1,49 @@
+# 开发环境配置示例（模板） — 覆盖 application.yml
+#
+# 用法：
+#   1. 复制本文件为 application-dev.yml
+#      cp application-dev-example.yml application-dev.yml
+#   2. 把下面的占位符替换为你自己的真实值
+#   3. application-dev.yml 已被 .gitignore 忽略，不会误提交
+#
+# 也可以完全不建本地文件，直接用环境变量覆盖（见 README 的环境变量表）：
+#   DASHSCOPE_API_KEY / DB_HOST / DB_USER / DB_PASS / JWT_SECRET / ...
+
+spring:
+  ai:
+    dashscope:
+      # 阿里云百炼 API Key（https://bailian.console.aliyun.com/）
+      # 需要同时开通「对话 qwen-plus」与「嵌入 text-embedding-v3」两个模型
+      api-key: ${DASHSCOPE_API_KEY:sk-your-api-key-here}
+  datasource:
+    # 本地 PostgreSQL 16（需安装 pgvector、uuid-ossp 扩展）
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:agent_hub}?stringtype=unspecified
+    username: ${DB_USER:agenthub}
+    password: ${DB_PASS:agenthub}
+  # Redis 配置已临时注释（未部署 Redis，恢复依赖后取消注释）
+  # data:
+  #   redis:
+  #     host: ${REDIS_HOST:localhost}
+  #     port: 6379
+  #     # # → %23, % → %25（Redis URI 中 # 是片段前缀，% 是编码前缀）
+  #     password: ${REDIS_PASS:}
+  #     database: 0
+  #     timeout: 5000ms
+
+logging:
+  level:
+    com.leon.agenthub: DEBUG
+    # 项目使用 Spring Data JPA（非 MyBatis），MyBatis 日志级别设置无效，可删
+    org.hibernate.SQL: DEBUG
+
+agenthub:
+  storage:
+    # 文档存储根目录，结构为 {root-path}/{docId}/{filename}
+    root-path: ${STORAGE_ROOT_PATH:./data/docs}
+
+  agent:
+    # 超级智能体工具配置（文件读写 / PDF 生成 / 资源下载 / 网页爬取 / 网页搜索）
+    tool:
+      # 网页搜索 API Key（https://www.searchapi.io/），留空则 WebSearchTool 返回不可用提示，
+      # 不影响其他工具
+      web-search-api-key: ${SEARCH_API_KEY:}
