@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.time.OffsetDateTime;
+
 /**
  * 审计日志数据访问接口 — 查询和管理 audit_logs 表。
  *
@@ -16,4 +18,21 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLogEntity, Long>,
         JpaSpecificationExecutor<AuditLogEntity> {
+
+    /**
+     * 统计指定用户的累计操作数 — 工作台活跃度统计。
+     *
+     * @param userId 用户 ID
+     * @return 操作条数
+     */
+    long countByUserId(Long userId);
+
+    /**
+     * 统计指定用户在指定时间之后的操作数 — 工作台今日 / 近 7 日活跃度统计。
+     *
+     * @param userId 用户 ID
+     * @param after  起始时间（不含）
+     * @return 操作条数
+     */
+    long countByUserIdAndCreatedAtAfter(Long userId, OffsetDateTime after);
 }

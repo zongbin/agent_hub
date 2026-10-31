@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Clock, Plus, Promotion, ChatLineRound, Link, Files, MagicStick } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
@@ -28,7 +28,7 @@ interface ChatMessage {
   streaming?: boolean
 }
 
-const router = useRouter()
+const route = useRoute()
 const messages = ref<ChatMessage[]>([])
 const input = ref('')
 const loading = ref(false)
@@ -231,13 +231,16 @@ const securityLabel = (level: string): string => {
   return map[level] || level
 }
 
-const securityTagType = (level: string): string => {
-  const map: Record<string, string> = { PUBLIC: 'success', INTERNAL: 'warning', CONFIDENTIAL: 'danger' }
-  return map[level] || 'info'
-}
-
-onMounted(() => {
-  loadConversations()
+onMounted(async () => {
+  await loadConversations()
+  // 支持从工作台「最近会话」跳转
+  const targetId = route.query.conversationId
+  if (typeof targetId === 'string' && targetId) {
+    const target = conversations.value.find((c) => c.id === targetId)
+    if (target) {
+      await openConversation(target)
+    }
+  }
 })
 </script>
 
@@ -368,15 +371,19 @@ onMounted(() => {
                 引用来源
               </div>
               <div class="sources-list">
-                <div
+                <a
                   v-for="(s, si) in m.sources"
                   :key="si"
                   class="source-chip"
-                  @click="openDocument(s)"
+                  href="javascript:void(0)"
+                  @click.prevent="openDocument(s)"
                 >
                   <span class="source-index">{{ si + 1 }}</span>
-                  {{ s.title }}<template v-if="s.chunkIndex != null"> · 第 {{ s.chunkIndex + 1 }} 段</template>
-                </div>
+                  <span class="source-chip-text">
+                    {{ s.title }}<template v-if="s.chunkIndex != null"> · 第 {{ s.chunkIndex + 1 }} 段</template>
+                  </span>
+                  <el-icon :size="12" class="source-link-icon"><Link /></el-icon>
+                </a>
               </div>
             </div>
 
@@ -479,7 +486,7 @@ onMounted(() => {
               <el-icon><MagicStick /></el-icon>
               AI 摘要
             </div>
-            <div class="doc-drawer-summary">{{ docDrawerDoc.summary }}</div>
+            <div class="doc-drawer-summary md-render" v-html="renderMarkdown(docDrawerDoc.summary)"></div>
           </div>
 
           <!-- 分块内容 -->
@@ -507,7 +514,7 @@ onMounted(() => {
                     <span class="chunk-chars">{{ chunk.charCount }} 字</span>
                   </div>
                 </template>
-                <pre class="chunk-content">{{ chunk.content }}</pre>
+                <div class="chunk-content md-render" v-html="renderMarkdown(chunk.content)"></div>
               </el-collapse-item>
             </el-collapse>
           </div>
@@ -919,31 +926,52 @@ onMounted(() => {
   gap: 7px;
   font-size: 12px;
   color: var(--accent-text);
-  padding: 5px 9px;
+  padding: 6px 10px;
   border-radius: 8px;
   background: var(--tint-cyan-bg);
   border: 1px solid var(--tint-cyan-border);
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  text-decoration: none;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
 .source-chip:hover {
-  background: rgba(34, 211, 238, 0.14);
+  background: rgba(34, 211, 238, 0.16);
   border-color: var(--ai-cyan);
   transform: translateX(2px);
+  box-shadow: 0 0 12px -4px rgba(34, 211, 238, 0.5);
+}
+
+.source-chip-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-link-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.source-chip:hover .source-link-icon {
+  opacity: 1;
 }
 
 .source-index {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   border-radius: 4px;
   font-size: 10px;
   font-weight: 700;
   color: #062024;
   background: var(--ai-cyan);
+  flex-shrink: 0;
 }
 
 /* ===== 反馈 ===== */
@@ -1146,6 +1174,7 @@ onMounted(() => {
   color: var(--text-soft);
   background: var(--primary-softer);
   border: 1px solid var(--primary-border);
+  word-break: break-word;
 }
 
 .chunk-title {
@@ -1180,12 +1209,121 @@ onMounted(() => {
 
 .chunk-content {
   margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
   font-family: inherit;
   font-size: 13px;
   line-height: 1.85;
   color: var(--text-soft);
+}
+
+/* ===== 分块 Markdown 渲染 ===== */
+.md-render {
+  word-break: break-word;
+}
+
+.md-render :deep(h1),
+.md-render :deep(h2),
+.md-render :deep(h3),
+.md-render :deep(h4) {
+  margin: 1em 0 0.5em;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.md-render :deep(h1) { font-size: 1.4em; }
+.md-render :deep(h2) { font-size: 1.25em; }
+.md-render :deep(h3) { font-size: 1.12em; }
+.md-render :deep(h4) { font-size: 1em; }
+
+.md-render :deep(p) { margin: 0 0 0.6em; }
+
+.md-render :deep(ul),
+.md-render :deep(ol) {
+  margin: 0.4em 0;
+  padding-left: 1.6em;
+}
+
+.md-render :deep(li) { margin: 0.2em 0; }
+
+.md-render :deep(blockquote) {
+  margin: 0.6em 0;
+  padding: 6px 14px;
+  border-left: 3px solid var(--ai-cyan);
+  background: var(--tint-cyan-bg);
+  color: var(--text-dim);
+  border-radius: 0 8px 8px 0;
+}
+
+.md-render :deep(code) {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--tint-cyan-bg);
+  color: var(--accent-text);
+  border: 1px solid var(--tint-cyan-border);
+}
+
+.md-render :deep(pre) {
+  margin: 0.6em 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(8, 14, 28, 0.85);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.md-render :deep(pre code) {
+  padding: 0;
+  background: none;
+  border: none;
+  color: #c9d1d9;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.md-render :deep(a) {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.md-render :deep(a:hover) { color: #7C5CFF; }
+
+.md-render :deep(table) {
+  margin: 0.6em 0;
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+
+.md-render :deep(th),
+.md-render :deep(td) {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.md-render :deep(th) {
+  background: var(--surface-hover);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.md-render :deep(hr) {
+  margin: 0.8em 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.md-render :deep(img) {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.md-render :deep(strong) {
+  color: var(--text);
+  font-weight: 700;
 }
 
 .doc-drawer-alert {

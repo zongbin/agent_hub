@@ -48,7 +48,7 @@ public class KnowlegeDocumentEnricher {
         if (documents == null || documents.isEmpty()) {
             return documents;
         }
-        KeywordMetadataEnricher enricher = new KeywordMetadataEnricher(this.chatModel, 5);
+        KeywordMetadataEnricher enricher = new KeywordMetadataEnricher(this.chatModel, 3);
         return enricher.apply(documents);
     }
 

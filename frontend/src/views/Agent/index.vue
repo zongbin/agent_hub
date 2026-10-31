@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Clock, Plus, Promotion, Cpu } from '@element-plus/icons-vue'
 import { agentApi } from '@/api/agent'
@@ -26,6 +27,7 @@ interface DisplayMessage {
   streaming?: boolean
 }
 
+const route = useRoute()
 const messages = ref<DisplayMessage[]>([])
 const input = ref('')
 const loading = ref(false)
@@ -178,8 +180,16 @@ const sendMessage = async () => {
   }
 }
 
-onMounted(() => {
-  loadConversations()
+onMounted(async () => {
+  await loadConversations()
+  // 支持从工作台「最近会话」跳转
+  const targetId = route.query.conversationId
+  if (typeof targetId === 'string' && targetId) {
+    const target = conversations.value.find((c) => c.id === targetId)
+    if (target) {
+      await openConversation(target)
+    }
+  }
 })
 </script>
 
