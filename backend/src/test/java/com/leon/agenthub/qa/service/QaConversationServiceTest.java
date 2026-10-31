@@ -14,7 +14,6 @@ import com.leon.agenthub.qa.repository.ChatMemoryMessageRepository;
 import com.leon.agenthub.qa.repository.ConversationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Flux;
 
 import java.time.OffsetDateTime;
@@ -55,7 +54,6 @@ class QaConversationServiceTest {
         conversationRepository = mock(ConversationRepository.class);
         messageRepository = mock(ChatMemoryMessageRepository.class);
         QaConverter qaConverter = new QaConverter();
-        ReflectionTestUtils.setField(qaConverter, "snippetLength", 500);
         qaService = new QaService(chatService, conversationRepository,
                 messageRepository, new ObjectMapper(), qaConverter);
 

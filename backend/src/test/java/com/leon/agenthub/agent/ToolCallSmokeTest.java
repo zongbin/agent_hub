@@ -9,14 +9,18 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
+
 /**
  * 临时冒烟测试：验证模型能识别并调用新注册的工具。
+ *
+ * <p>走与 {@code ToolCallAgent} 相同的<b>代理式工具调用</b>模式
+ * （{@code withProxyToolCalls(true)}）：工具由 Agent 自己执行，模型只负责发起调用。
  */
 @SpringBootTest
 @ActiveProfiles("dev")
@@ -30,13 +34,11 @@ class ToolCallSmokeTest {
 
     @Test
     void modelShouldCallWriteFileTool() {
-        Prompt prompt = new Prompt("请调用 writeFile 工具，把内容 'hello agent' 写入文件 hello.txt。",
-                org.springframework.ai.model.tool.ToolCallingChatOptions.builder()
-                        .toolCallbacks(allTools)
-                        .build());
         ChatResponse response = org.springframework.ai.chat.client.ChatClient.builder(chatModel)
                 .build()
-                .prompt("请调用 writeFile 工具，把内容 'hello agent' 写入文件 hello.txt。")
+                .prompt(new Prompt(
+                        "请调用 writeFile 工具，把内容 'hello agent' 写入文件 hello.txt。",
+                        DashScopeChatOptions.builder().withProxyToolCalls(true).build()))
                 .tools(allTools)
                 .call()
                 .chatResponse();

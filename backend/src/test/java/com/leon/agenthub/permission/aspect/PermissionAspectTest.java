@@ -10,6 +10,7 @@ import com.leon.agenthub.permission.repository.AuditLogRepository;
 import com.leon.agenthub.permission.service.PermissionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
