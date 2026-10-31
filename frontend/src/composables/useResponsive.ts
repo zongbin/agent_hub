@@ -1,10 +1,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 /** 移动端断点（与各页面 @media 断点保持一致） */
-export const MOBILE_BREAKPOINT = 768
-
-/** 平板断点 */
-export const TABLET_BREAKPOINT = 1024
+const MOBILE_BREAKPOINT = 768
 
 /**
  * 响应式断点状态。
@@ -31,10 +28,5 @@ export function useResponsive() {
   /** 是否为移动端 */
   const isMobile = computed(() => width.value <= MOBILE_BREAKPOINT)
 
-  /** 是否为平板（移动端以上、桌面以下） */
-  const isTablet = computed(
-    () => width.value > MOBILE_BREAKPOINT && width.value <= TABLET_BREAKPOINT
-  )
-
-  return { width, isMobile, isTablet }
+  return { isMobile }
 }

@@ -19,10 +19,15 @@ public class KnowledgeProperties {
     @Data
     public static class Chunk {
         /** 每块 token 数 */
-        private int size = 512;
+        private int size = 1000;
 
-        /** 重叠 token 数 */
-        private int overlap = 50;
+        /**
+         * 每块的最小字符数 —— 小于该长度的分块会被合并到相邻分块。
+         *
+         * <p>Spring AI 的 {@code TokenTextSplitter} 不支持 overlap（重叠）参数，
+         * 因此这里只暴露「块大小」与「最小块长度」两项。
+         */
+        private int minSize = 400;
     }
 
     @Data

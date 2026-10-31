@@ -9,7 +9,7 @@
  */
 
 /** 只读角色 —— 不能上传、删除知识库文档 */
-export const READ_ONLY_ROLES: ReadonlyArray<string> = ['VIEWER', 'GUEST']
+const READ_ONLY_ROLES: ReadonlyArray<string> = ['VIEWER', 'GUEST']
 
 /**
  * 是否为只读角色。

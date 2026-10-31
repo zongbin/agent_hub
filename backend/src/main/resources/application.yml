@@ -80,21 +80,6 @@ agenthub:
   storage:
     # 本地文件系统存储，后续迁移到 MinIO / S3 时替换实现
     root-path: ${STORAGE_ROOT_PATH:./data/docs}
-  llm:
-    chat-model: qwen-plus
-  embedding:
-    # 灵积平台（DashScope）通用文本向量接口
-    base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com}
-    api-key: ${DASHSCOPE_API_KEY:}
-    model: text-embedding-v3
-    dimensions: 1024
-    batch-size: 10
-    connect-timeout-ms: 5000
-    read-timeout-ms: 30000
-  super-agent:
-    service-url: ${AGENT_SERVICE_URL:http://localhost:8000}
-    connect-timeout-ms: 5000
-    read-timeout-ms: 300000
   agent:
     # 超级智能体工具配置（文件读写 / PDF 生成 / 资源下载 / 网页爬取 / 网页搜索）
     tool:
@@ -106,8 +91,10 @@ agenthub:
       web-search-limit: 5
       web-scrape-timeout-ms: 15000
   chunk:
-    size: 512
-    overlap: 50
+    # 分块大小（token）—— Spring AI 的 TokenTextSplitter 不支持 overlap（重叠）参数
+    size: 1000
+    # 最小块长度（字符）—— 小于该长度的分块会被并入相邻分块
+    min-size: 400
   knowledge:
     # 是否调用 LLM 生成关键词/摘要。关闭后文档仍可解析、分块、向量化入库，
     # 只是没有关键词/摘要元信息（适合模型服务不可用或需要压低成本时）
@@ -118,7 +105,6 @@ agenthub:
   qa:
     top-k: 5              # 检索返回的分块数
     similarity-threshold: 0.7 #相似度阈值
-    snippet-length: 500   # 前端展示的引用片段长度
     query-rewrite-enabled: true  # 是否用 LLM 改写查询后再检索（关闭可省一次模型调用）
 
 # Knife4j / OpenAPI 文档

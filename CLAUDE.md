@@ -132,14 +132,14 @@ public void delete(Long id) {
 | ORM / DB | PostgreSQL 16 + pgvector extension (vector search inside the same DB as business data — this is a deliberate choice, not an oversight) |
 | Cache / State / SSE | Redis 7 |
 | File storage | MinIO (S3-compatible, self-hosted) |
-| Agent orchestration | LangGraph (Python microservice, called over HTTP from Java backend) |
-| LLM | DeepSeek-V3 (chat), DeepSeek-Embedding / BAAI/bge-large-zh (embeddings) |
+| Agent orchestration | LangGraph (Python microservice, called over HTTP from Java backend) — 规划中，当前 SuperAgent 为 Java 侧 ReAct 实现 |
+| LLM | 阿里云百炼 DashScope（对话 qwen-plus，嵌入 text-embedding-v3 / 1024 维） |
 | Reverse proxy | Nginx 1.24 |
 | Deployment | Docker Compose |
 
 ## Key Architectural Decisions
 
-1. **pgvector over dedicated vector DB** — vectors live in PostgreSQL alongside document metadata. Permission filtering happens naturally via SQL JOIN to the `documents` table. Zero extra ops cost. HNSW index (target < 50ms query, < 50M vectors). Migrate to Milvus/Qdrant only if vector count exceeds ~1M.
+1. **pgvector over dedicated vector DB** — vectors live in PostgreSQL alongside business data. Permission filtering is pushed down into the vector store as a filter expression over chunk metadata (`securityLevel` / `documentId`), not by a SQL JOIN. Zero extra ops cost. HNSW index (target < 50ms query, < 50M vectors). Migrate to Milvus/Qdrant only if vector count exceeds ~1M.
 
 2. **LangGraph as a separate Python service** — the SuperAgent (Planner + Executor + Tool Layer) runs in Python. The Java backend communicates with it over HTTP. This is intentional: LangGraph provides Plan-and-Execute, checkpointing, and streaming natively.
 
@@ -149,13 +149,13 @@ public void delete(Long id) {
 
 5. **Unified permission layer** — `@RequirePermission` annotation on service methods. JWT → role + department → resource security level check. 4 roles (ADMIN, EDITOR, VIEWER, GUEST) × 3 security levels (PUBLIC, INTERNAL, CONFIDENTIAL) + per-document grants in `doc_permissions`.
 
-6. **Model routing for cost control** — strong model (DeepSeek-V3) for planning and content generation; cheap options (Qwen-mini, rules) for intent classification and data analysis. Target: ~¥0.05–0.10 per 5-step agent task.
+6. **Model routing for cost control** — 规划中：强模型（当前统一 qwen-plus）负责规划与内容生成；廉价模型（Qwen-mini、规则）用于意图分类与数据分析。Target: ~¥0.05–0.10 per 5-step agent task.
 
 ## Core Data Flows
 
-**Document upload**: Multipart → MinIO → Tika/docx/pptx/xlsx parse → chunk (512 tokens, 50 overlap) → Embedding → pgvector (`document_chunks` table) + metadata in `documents` → AI summary + tags via LLM.
+**Document upload**: Multipart → MinIO → Tika/docx/pptx/xlsx parse → chunk (`agenthub.chunk.size` tokens) → Embedding → pgvector（Spring AI `PgVectorStore` 写入 `vector_store` 表，metadata 带 documentId/securityLevel/title/chunkIndex）+ 文档元信息在 `documents` → AI summary + tags via LLM。
 
-**Q&A (simple question)**: Question → intent classifier → Embedding → pgvector top-K=5 (with permission JOIN) → ReRanker → build prompt with citations → DeepSeek stream (SSE) → answer + citations + feedback buttons.
+**Q&A (simple question)**: Question → 查询改写（`RewriteQueryTransformer`）→ Embedding → pgvector top-K=5（权限过滤以 filter expression 下推）→ build prompt with citations → LLM stream (SSE) → answer + citations + feedback buttons.
 
 **SuperAgent (complex task)**: Task → Task Router detects complexity → Planner LLM generates JSON plan → user confirms/modifies → Executor runs steps via LangGraph → each step calls a tool (knowledge_search, document_read, content_generation, data_analysis, api_call) → permission check per step → SSE progress → finalize → result + citations.
 
@@ -192,10 +192,11 @@ agent_hub/
 
 - 数据库 schema 由 Hibernate 自动管理（`spring.jpa.hibernate.ddl-auto: update`），无需 Flyway 迁移脚本。
 - 启动时 Hibernate 自动根据实体注解创建/更新表结构。
-- `document_chunks` 使用 `vector(1024)` — 维度必须与嵌入模型匹配（bge-large-zh = 1024）。
-- 向量搜索使用余弦距离操作符 `<=>`，配合 HNSW 索引（`m=16, ef_construction=64`）。
-- 权限感知检索始终 JOIN `document_chunks` → `documents`，并过滤 `security_level` + `doc_permissions`。禁止不带此 JOIN 查询 chunks。
-- `agent_tasks` / `agent_steps` 持久化计划和执行状态，支持暂停后恢复和审计。
+- **文档分块的唯一存储是 Spring AI 的 `vector_store` 表**（`PgVectorStore` + `initializeSchema(true)` 自维护），不再有独立的 `document_chunks` 表。
+- `vector_store.embedding` 使用 `vector(1024)` — 维度由 `spring.ai.dashscope.embedding.options.dimensions` 决定，必须与嵌入模型输出一致（text-embedding-v3 = 1024）。
+- 向量搜索使用余弦距离（`PgDistanceType.COSINE_DISTANCE`），配合 HNSW 索引（`m=16, ef_construction=64`）。
+- 权限感知检索**不做 SQL JOIN**，而是把过滤表达式下推到向量库：分块 metadata 里存有 `documentId` / `securityLevel` / `title` / `chunkIndex`，过滤规则由 `DocumentAccessFilter` 统一构造（角色×密级 + `doc_permissions` 文档级授权）。禁止先全量召回再在 Java 侧过滤。
+- 超级智能体的会话与步骤轨迹持久化在 `agent_conversations` / `agent_messages`（`steps_json`）；`agent_tasks` / `agent_steps` 属于 Plan-and-Execute 规划器，尚未启用。
 
 ## API Conventions
 
@@ -207,7 +208,7 @@ agent_hub/
 ## MVP Scope Boundaries (do not implement in MVP)
 
 - Knowledge graph, field-level redaction, IP whitelist, watermarking
-- Multi-model provider abstraction (DeepSeek only for now)
+- Multi-model provider abstraction (当前只有 DashScope 一套模型)
 - Data-source permission inheritance
 - Agent marketplace / custom orchestration
 - Mobile app

@@ -6,10 +6,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 /**
- * 知识库配置启用类 — 启用 Embedding/Knowledge 属性绑定，导入 Spring AI 配置。
+ * 知识库配置启用类 — 启用 Knowledge 属性绑定，导入 Spring AI 配置。
  */
 @Configuration
-@EnableConfigurationProperties({EmbeddingProperties.class, KnowledgeProperties.class})
+@EnableConfigurationProperties(KnowledgeProperties.class)
 @Import(SpringAiConfig.class)
-public class EmbeddingConfig {
+public class KnowledgeConfig {
 }

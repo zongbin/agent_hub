@@ -16,7 +16,7 @@ export function getToken(): string | null {
 }
 
 /** 清除 Token */
-export function removeToken(): void {
+function removeToken(): void {
   localStorage.removeItem(TOKEN_KEY)
 }
 
@@ -37,7 +37,7 @@ export function getUser<T = Record<string, unknown>>(): T | null {
 }
 
 /** 清除用户信息 */
-export function removeUser(): void {
+function removeUser(): void {
   localStorage.removeItem(USER_KEY)
 }
 
