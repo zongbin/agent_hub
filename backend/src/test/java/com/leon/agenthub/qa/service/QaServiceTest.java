@@ -41,7 +41,6 @@ class QaServiceTest {
         conversationRepository = mock(ConversationRepository.class);
         messageRepository = mock(ChatMemoryMessageRepository.class);
         QaConverter qaConverter = new QaConverter();
-        ReflectionTestUtils.setField(qaConverter, "snippetLength", 10);
         qaService = new QaService(chatService, conversationRepository,
                 messageRepository, new ObjectMapper(), qaConverter);
 
@@ -76,7 +75,7 @@ class QaServiceTest {
 
     @Test
     void askReturnsCitationsTogetherWithAnswer() {
-        ChatCitation citation = new ChatCitation(12L, "员工手册", 2, "片段", "/knowledge/12");
+        ChatCitation citation = new ChatCitation(12L, "员工手册", 2);
         when(chatService.chatStream(anyString(), anyString()))
                 .thenReturn(new ChatStreamResult(Flux.just("答案"), List.of(citation)));
 
@@ -84,7 +83,6 @@ class QaServiceTest {
 
         assertEquals(1, result.chat().citations().size());
         assertEquals(12L, result.chat().citations().get(0).documentId());
-        assertEquals("/knowledge/12", result.chat().citations().get(0).documentUrl());
     }
 
     @Test

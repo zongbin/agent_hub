@@ -10,6 +10,7 @@ import com.leon.agenthub.common.llm.ChatCitation;
 import com.leon.agenthub.common.llm.ChatService;
 import com.leon.agenthub.common.llm.ChatStreamResult;
 import com.leon.agenthub.permission.annotation.RequirePermission;
+import com.leon.agenthub.permission.enums.PermissionAction;
 import com.leon.agenthub.qa.converter.QaConverter;
 import com.leon.agenthub.qa.dto.ConversationVO;
 import com.leon.agenthub.qa.dto.MessageVO;
@@ -46,7 +47,7 @@ public class QaService {
      * @param userId         当前用户 ID
      * @return 问答结果（含会话 ID、回答内容流与引用来源）
      */
-    @RequirePermission(resource = "QA", action = "READ")
+    @RequirePermission(resource = "QA", action = PermissionAction.READ)
     public QaResult ask(String question, String conversationId, Long userId) {
         // 新增or 获取 对话信息
         Conversation conversation = resolveConversation(conversationId, question, userId);
@@ -89,7 +90,7 @@ public class QaService {
      * 提交回答反馈。
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "QA", action = "READ")
+    @RequirePermission(resource = "QA", action = PermissionAction.READ)
     public void saveFeedback(Long messageId, Boolean useful) {
         messageRepository.findById(messageId).ifPresent(m -> {
             m.setFeedback(Boolean.TRUE.equals(useful) ? 1 : 0);
@@ -100,7 +101,7 @@ public class QaService {
     /**
      * 查询用户的会话列表。
      */
-    @RequirePermission(resource = "QA", action = "READ")
+    @RequirePermission(resource = "QA", action = PermissionAction.READ)
     public List<ConversationVO> listConversations(Long userId) {
         return conversationRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
                 .map(qaConverter::toConversationVO)
@@ -110,7 +111,7 @@ public class QaService {
     /**
      * 查询某会话的消息列表。
      */
-    @RequirePermission(resource = "QA", action = "READ")
+    @RequirePermission(resource = "QA", action = PermissionAction.READ)
     public List<MessageVO> listMessages(String conversationId, Long userId) {
         Conversation conversation = requireOwnedConversation(conversationId, userId);
         return messageRepository.findByConversationIdOrderByIdAsc(conversation.getId()).stream()
@@ -122,7 +123,7 @@ public class QaService {
      * 删除会话及其消息。
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "QA", action = "READ")
+    @RequirePermission(resource = "QA", action = PermissionAction.READ)
     public void deleteConversation(String conversationId, Long userId) {
         Conversation conversation = requireOwnedConversation(conversationId, userId);
         messageRepository.deleteByConversationId(conversation.getId());

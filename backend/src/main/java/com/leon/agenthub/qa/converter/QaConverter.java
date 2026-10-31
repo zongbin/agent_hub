@@ -1,16 +1,13 @@
 package com.leon.agenthub.qa.converter;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.springframework.ai.document.Document;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.leon.agenthub.common.llm.ChatCitation;
 import com.leon.agenthub.qa.dto.ConversationVO;
 import com.leon.agenthub.qa.dto.MessageVO;
-import com.leon.agenthub.qa.enums.MessageRole;
 import com.leon.agenthub.qa.model.ChatMemoryMessage;
 import com.leon.agenthub.qa.model.Conversation;
 
@@ -20,12 +17,6 @@ import com.leon.agenthub.qa.model.Conversation;
 @Component
 public class QaConverter {
 
-    /** 文档详情页路径前缀（前端路由） */
-    private static final String DOCUMENT_DETAIL_PATH = "/knowledge/";
-
-    @Value("${agenthub.qa.snippet-length:500}")
-    private int snippetLength;
-
     /**
      * 检索分块 → 引用来源。
      */
@@ -34,9 +25,7 @@ public class QaConverter {
         Integer chunkIndex = intMetadata(doc, "chunkIndex");
         Object titleMeta = doc.getMetadata() == null ? null : doc.getMetadata().get("title");
         String title = titleMeta == null ? "" : titleMeta.toString();
-        String snippet = truncate(doc.getText(), snippetLength);
-        String documentUrl = documentId == null ? null : DOCUMENT_DETAIL_PATH + documentId;
-        return new ChatCitation(documentId, title, chunkIndex, snippet, documentUrl);
+        return new ChatCitation(documentId, title, chunkIndex);
     }
 
     /**
@@ -80,12 +69,5 @@ public class QaConverter {
     private Integer intMetadata(Document doc, String key) {
         Object value = doc.getMetadata() == null ? null : doc.getMetadata().get(key);
         return value instanceof Number number ? number.intValue() : null;
-    }
-
-    private String truncate(String text, int maxLength) {
-        if (text == null) {
-            return "";
-        }
-        return text.length() > maxLength ? text.substring(0, maxLength) : text;
     }
 }

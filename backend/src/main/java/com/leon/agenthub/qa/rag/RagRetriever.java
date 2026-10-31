@@ -3,6 +3,7 @@ package com.leon.agenthub.qa.rag;
 import java.util.List;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.RetrievalAugmentationAdvisor;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.Query;
@@ -79,8 +80,10 @@ public class RagRetriever {
      * @return 检索上下文（引用来源 + 参考资料文本）
      */
     public RagContext retrieve(String question, Long userId, UserRole userRole) {
-        String query = queryRewriteEnabled ? rewriteQuery(question) : question;
 
+        // 1、检索前查询重写
+        String query = queryRewriteEnabled ? rewriteQuery(question) : question;
+        // 2、文档检索
         VectorStoreDocumentRetriever retriever = VectorStoreDocumentRetriever.builder()
                 .vectorStore(vectorStore)
                 .similarityThreshold(similarityThreshold)
