@@ -5,16 +5,12 @@ export interface QaSource {
   documentId: number
   title: string
   chunkIndex: number
-  snippet: string
-  /** 文档详情页地址（可直接跳转） */
-  documentUrl?: string
 }
 
-/** 问答结果 — 回答内容与引用来源一起返回 */
+/** 问答结果 — 元数据与引用来源（回答内容已由 delta 推送） */
 export interface QaAnswer {
   conversationId: string
   messageId: number
-  answer: string
   sources: QaSource[]
 }
 
@@ -40,7 +36,7 @@ export interface Message {
 export interface QaStreamHandlers {
   /** 答案增量 */
   onDelta: (content: string) => void
-  /** 生成完成（回答内容与引用来源一起到达） */
+  /** 生成完成（元数据与引用来源，回答内容已由 delta 推送） */
   onDone: (answer: QaAnswer) => void
   /** 发生错误 */
   onError: (message: string) => void
@@ -204,7 +200,6 @@ function dispatchEvent(event: string, rawData: string, handlers: QaStreamHandler
       handlers.onDone({
         conversationId: String(payload.conversationId ?? ''),
         messageId: Number(payload.messageId ?? 0),
-        answer: String(payload.answer ?? ''),
         sources: (payload.sources as QaSource[]) ?? []
       })
       break

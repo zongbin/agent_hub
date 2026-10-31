@@ -1,12 +1,24 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Refresh, Delete, MagicStick, Files } from '@element-plus/icons-vue'
+import MarkdownIt from 'markdown-it'
 import { knowledgeApi, type DocumentChunk, type DocumentVO } from '@/api/knowledge'
+import { useAuthStore } from '@/stores/auth'
+import { canManageDocuments } from '@/utils/permission'
+
+/** markdown-it 实例 — 安全默认值，禁止内嵌 HTML 防 XSS */
+const md = new MarkdownIt({ html: false, linkify: true, typographer: true })
+
+const renderMd = (text: string): string => (text ? md.render(text) : '')
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
+
+/** 是否可删除文档（查看者与访客为只读角色） */
+const canManage = computed(() => canManageDocuments(authStore.user?.role))
 
 const loading = ref(true)
 const doc = ref<DocumentVO | null>(null)
@@ -182,7 +194,7 @@ onMounted(() => {
             <el-icon class="mr-1"><Refresh /></el-icon>
             刷新状态
           </el-button>
-          <el-button type="danger" plain @click="handleDelete">
+          <el-button v-if="canManage" type="danger" plain @click="handleDelete">
             <el-icon class="mr-1"><Delete /></el-icon>
             删除
           </el-button>
@@ -215,7 +227,7 @@ onMounted(() => {
           <span class="panel-icon"><el-icon :size="15"><MagicStick /></el-icon></span>
           AI 摘要
         </h3>
-        <div v-if="doc.summary" class="summary-box">{{ doc.summary }}</div>
+        <div v-if="doc.summary" class="summary-box md-render" v-html="renderMd(doc.summary)"></div>
         <el-skeleton v-else :rows="2" animated />
       </section>
 
@@ -241,7 +253,7 @@ onMounted(() => {
                   <span class="chunk-chars">{{ chunk.charCount }} 字</span>
                 </div>
               </template>
-              <pre class="chunk-content">{{ chunk.content }}</pre>
+              <div class="chunk-content md-render" v-html="renderMd(chunk.content)"></div>
             </el-collapse-item>
           </el-collapse>
         </div>
@@ -433,13 +445,124 @@ onMounted(() => {
 
 .chunk-content {
   margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
   font-family: inherit;
   font-size: 13px;
   line-height: 1.9;
   color: var(--text-soft);
 }
+
+/* ===== Markdown 渲染 ===== */
+.md-render {
+  word-break: break-word;
+}
+
+.md-render :deep(h1),
+.md-render :deep(h2),
+.md-render :deep(h3),
+.md-render :deep(h4) {
+  margin: 1em 0 0.5em;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.md-render :deep(h1) { font-size: 1.4em; }
+.md-render :deep(h2) { font-size: 1.25em; }
+.md-render :deep(h3) { font-size: 1.12em; }
+.md-render :deep(h4) { font-size: 1em; }
+
+.md-render :deep(p) { margin: 0 0 0.6em; }
+
+.md-render :deep(ul),
+.md-render :deep(ol) {
+  margin: 0.4em 0;
+  padding-left: 1.6em;
+}
+
+.md-render :deep(li) { margin: 0.2em 0; }
+
+.md-render :deep(blockquote) {
+  margin: 0.6em 0;
+  padding: 6px 14px;
+  border-left: 3px solid var(--ai-cyan);
+  background: var(--tint-cyan-bg);
+  color: var(--text-dim);
+  border-radius: 0 8px 8px 0;
+}
+
+.md-render :deep(code) {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--tint-cyan-bg);
+  color: var(--accent-text);
+  border: 1px solid var(--tint-cyan-border);
+}
+
+.md-render :deep(pre) {
+  margin: 0.6em 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(8, 14, 28, 0.85);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.md-render :deep(pre code) {
+  padding: 0;
+  background: none;
+  border: none;
+  color: #c9d1d9;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.md-render :deep(a) {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.md-render :deep(a:hover) { color: #7C5CFF; }
+
+.md-render :deep(table) {
+  margin: 0.6em 0;
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+
+.md-render :deep(th),
+.md-render :deep(td) {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.md-render :deep(th) {
+  background: var(--surface-hover);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.md-render :deep(hr) {
+  margin: 0.8em 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.md-render :deep(img) {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.md-render :deep(strong) {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.md-render :deep(em) { font-style: italic; }
 
 @media (max-width: 900px) {
   .meta-grid {

@@ -1,12 +1,23 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Clock, Plus, Promotion, ChatLineRound } from '@element-plus/icons-vue'
+import { Clock, Plus, Promotion, ChatLineRound, Link, Files, MagicStick } from '@element-plus/icons-vue'
+import MarkdownIt from 'markdown-it'
 import { qaApi } from '@/api/qa'
 import type { Conversation, QaSource } from '@/api/qa'
+import { knowledgeApi, type DocumentChunk, type DocumentVO } from '@/api/knowledge'
 import ConversationList from '@/components/ConversationList.vue'
 import { useResponsive } from '@/composables/useResponsive'
+
+/** markdown-it 实例 — 配置为安全默认值 */
+const md = new MarkdownIt({ html: false, linkify: true, typographer: true })
+
+/** 渲染 markdown 文本为 HTML */
+const renderMarkdown = (text: string): string => {
+  if (!text) return ''
+  return md.render(text)
+}
 
 interface ChatMessage {
   id?: number
@@ -29,6 +40,43 @@ const { isMobile } = useResponsive()
 
 /** 移动端历史会话抽屉 */
 const convDrawerVisible = ref(false)
+
+/** 引用文档详情抽屉 */
+const docDrawerVisible = ref(false)
+const docDrawerLoading = ref(false)
+const docDrawerDoc = ref<DocumentVO | null>(null)
+const docDrawerChunks = ref<DocumentChunk[]>([])
+const docDrawerActiveChunk = ref<number | undefined>(undefined)
+
+/** 加载文档详情抽屉内容 */
+const loadDocDrawer = async (documentId: number, chunkIndex?: number) => {
+  docDrawerLoading.value = true
+  docDrawerDoc.value = null
+  docDrawerChunks.value = []
+  docDrawerActiveChunk.value = chunkIndex
+  docDrawerVisible.value = true
+  try {
+    docDrawerDoc.value = await knowledgeApi.detail(documentId)
+    docDrawerChunks.value = await knowledgeApi.chunks(documentId)
+    // 等待 DOM 渲染后滚动到引用分块
+    if (chunkIndex != null) {
+      await nextTick()
+      await nextTick()
+      const el = document.querySelector(`[data-chunk-index="${chunkIndex}"]`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  } catch (error: unknown) {
+    const err = error as { message?: string; response?: { status?: number } }
+    if (err.response?.status === 403) {
+      ElMessage.error('权限不足，无法访问该文档')
+    } else {
+      ElMessage.error(err.message || '加载文档详情失败')
+    }
+    docDrawerVisible.value = false
+  } finally {
+    docDrawerLoading.value = false
+  }
+}
 
 /** 加载会话列表 */
 const loadConversations = async () => {
@@ -109,11 +157,10 @@ const sendMessage = async () => {
           assistant.content += content
         },
         onDone: (answer) => {
-          // 回答内容与引用来源一起到达，一次性渲染
+          // 回答内容已由 delta 推送，此处只取元数据
           if (answer.conversationId) {
             currentConversationId.value = answer.conversationId
           }
-          assistant.content = answer.answer || assistant.content
           assistant.sources = answer.sources ?? []
           assistant.id = answer.messageId
           assistant.streaming = false
@@ -150,10 +197,43 @@ const submitFeedback = async (message: ChatMessage, useful: boolean) => {
 }
 
 const openDocument = (source: QaSource) => {
-  const path = source.documentUrl || (source.documentId ? `/knowledge/${source.documentId}` : '')
-  if (path) {
-    router.push(path)
+  if (source.documentId != null) {
+    loadDocDrawer(source.documentId, source.chunkIndex)
   }
+}
+
+/** 在新标签页打开文档详情 */
+const openDocumentInNewTab = (documentId: number) => {
+  window.open(`/knowledge/${documentId}`, '_blank')
+}
+
+/** 格式化文件大小 */
+const formatFileSize = (bytes: number): string => {
+  if (!bytes) return '-'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+/** 状态标签样式 */
+const statusTagType = (status: string): string => {
+  const map: Record<string, string> = { PROCESSING: 'warning', ACTIVE: 'success', FAILED: 'danger' }
+  return map[status] || 'info'
+}
+
+const statusLabel = (status: string): string => {
+  const map: Record<string, string> = { PROCESSING: '处理中', ACTIVE: '已就绪', FAILED: '处理失败' }
+  return map[status] || status
+}
+
+const securityLabel = (level: string): string => {
+  const map: Record<string, string> = { PUBLIC: '公开', INTERNAL: '内部', CONFIDENTIAL: '机密' }
+  return map[level] || level
+}
+
+const securityTagType = (level: string): string => {
+  const map: Record<string, string> = { PUBLIC: 'success', INTERNAL: 'warning', CONFIDENTIAL: 'danger' }
+  return map[level] || 'info'
 }
 
 onMounted(() => {
@@ -266,7 +346,15 @@ onMounted(() => {
           </div>
 
           <div class="msg-bubble" :class="m.role === 'user' ? 'bubble-user' : 'bubble-ai'">
-            <pre class="msg-text">{{ m.content }}<span v-if="m.streaming" class="caret">▍</span></pre>
+            <!-- 用户消息：纯文本 -->
+            <pre v-if="m.role === 'user'" class="msg-text">{{ m.content }}</pre>
+            <!-- 助手消息：Markdown 渲染 -->
+            <div
+              v-else
+              class="msg-markdown"
+              v-html="renderMarkdown(m.content)"
+            ></div>
+            <span v-if="m.streaming" class="caret">▍</span>
 
             <!-- 流式等待指示 -->
             <div v-if="m.streaming && !m.content" class="thinking">
@@ -344,6 +432,108 @@ onMounted(() => {
         </div>
       </footer>
     </section>
+
+    <!-- 引用文档详情抽屉 -->
+    <el-drawer
+      v-model="docDrawerVisible"
+      direction="rtl"
+      :size="isMobile ? '90%' : '50%'"
+      :with-header="false"
+      class="doc-drawer"
+      append-to-body
+    >
+      <div v-loading="docDrawerLoading" class="doc-drawer-content">
+        <div v-if="docDrawerDoc" class="doc-drawer-inner">
+          <!-- 抽屉头部 -->
+          <div class="doc-drawer-head">
+            <div class="doc-drawer-title-row">
+              <span
+                class="doc-drawer-security"
+                :class="`security-${docDrawerDoc.securityLevel?.toLowerCase()}`"
+              >
+                {{ securityLabel(docDrawerDoc.securityLevel) }}
+              </span>
+              <h2 class="doc-drawer-title">{{ docDrawerDoc.title }}</h2>
+            </div>
+            <el-button
+              link
+              size="small"
+              :icon="Link"
+              @click="openDocumentInNewTab(docDrawerDoc.id)"
+            >
+              新标签打开
+            </el-button>
+          </div>
+
+          <!-- 元信息 -->
+          <div class="doc-drawer-meta">
+            <span>{{ docDrawerDoc.fileType?.toUpperCase() }} · {{ formatFileSize(docDrawerDoc.fileSize) }}</span>
+            <el-tag :type="statusTagType(docDrawerDoc.status)" size="small">
+              {{ statusLabel(docDrawerDoc.status) }}
+            </el-tag>
+          </div>
+
+          <!-- AI 摘要 -->
+          <div v-if="docDrawerDoc.summary" class="doc-drawer-section">
+            <div class="doc-drawer-section-title">
+              <el-icon><MagicStick /></el-icon>
+              AI 摘要
+            </div>
+            <div class="doc-drawer-summary">{{ docDrawerDoc.summary }}</div>
+          </div>
+
+          <!-- 分块内容 -->
+          <div class="doc-drawer-section">
+            <div class="doc-drawer-section-title">
+              <el-icon><Files /></el-icon>
+              分块内容
+              <span v-if="docDrawerChunks.length" class="doc-drawer-count">
+                共 {{ docDrawerChunks.length }} 块
+              </span>
+            </div>
+            <el-collapse v-model="docDrawerActiveChunk" accordion>
+              <el-collapse-item
+                v-for="chunk in docDrawerChunks"
+                :key="chunk.chunkIndex"
+                :name="chunk.chunkIndex"
+              >
+                <template #title>
+                  <div
+                    class="chunk-title"
+                    :data-chunk-index="chunk.chunkIndex"
+                    :class="{ 'chunk-highlighted': chunk.chunkIndex === docDrawerActiveChunk }"
+                  >
+                    <span class="chunk-tag">#{{ chunk.chunkIndex + 1 }}</span>
+                    <span class="chunk-chars">{{ chunk.charCount }} 字</span>
+                  </div>
+                </template>
+                <pre class="chunk-content">{{ chunk.content }}</pre>
+              </el-collapse-item>
+            </el-collapse>
+          </div>
+
+          <!-- 处理中 / 失败提示 -->
+          <el-alert
+            v-if="docDrawerDoc.status === 'PROCESSING'"
+            type="warning"
+            :closable="false"
+            show-icon
+            class="doc-drawer-alert"
+          >
+            <template #title>文档正在处理中，请稍后刷新查看结果。</template>
+          </el-alert>
+          <el-alert
+            v-if="docDrawerDoc.status === 'FAILED'"
+            type="error"
+            :closable="false"
+            show-icon
+            class="doc-drawer-alert"
+          >
+            <template #title>文档处理失败，请检查文件格式或重新上传。</template>
+          </el-alert>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -547,6 +737,126 @@ onMounted(() => {
   line-height: 1.85;
 }
 
+/* ===== Markdown 渲染 ===== */
+.msg-markdown {
+  font-size: 13.5px;
+  line-height: 1.85;
+  color: var(--text-soft);
+  word-break: break-word;
+}
+
+.msg-markdown :deep(h1),
+.msg-markdown :deep(h2),
+.msg-markdown :deep(h3),
+.msg-markdown :deep(h4) {
+  margin: 1em 0 0.5em;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.msg-markdown :deep(h1) { font-size: 1.4em; }
+.msg-markdown :deep(h2) { font-size: 1.25em; }
+.msg-markdown :deep(h3) { font-size: 1.12em; }
+.msg-markdown :deep(h4) { font-size: 1em; }
+
+.msg-markdown :deep(p) {
+  margin: 0 0 0.6em;
+}
+
+.msg-markdown :deep(ul),
+.msg-markdown :deep(ol) {
+  margin: 0.4em 0;
+  padding-left: 1.6em;
+}
+
+.msg-markdown :deep(li) {
+  margin: 0.2em 0;
+}
+
+.msg-markdown :deep(blockquote) {
+  margin: 0.6em 0;
+  padding: 6px 14px;
+  border-left: 3px solid var(--ai-cyan);
+  background: var(--tint-cyan-bg);
+  color: var(--text-dim);
+  border-radius: 0 8px 8px 0;
+}
+
+.msg-markdown :deep(code) {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--tint-cyan-bg);
+  color: var(--accent-text);
+  border: 1px solid var(--tint-cyan-border);
+}
+
+.msg-markdown :deep(pre) {
+  margin: 0.6em 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(8, 14, 28, 0.85);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.msg-markdown :deep(pre code) {
+  padding: 0;
+  background: none;
+  border: none;
+  color: #c9d1d9;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.msg-markdown :deep(a) {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.msg-markdown :deep(a:hover) {
+  color: #7C5CFF;
+}
+
+.msg-markdown :deep(table) {
+  margin: 0.6em 0;
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+
+.msg-markdown :deep(th),
+.msg-markdown :deep(td) {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.msg-markdown :deep(th) {
+  background: var(--surface-hover);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.msg-markdown :deep(hr) {
+  margin: 0.8em 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.msg-markdown :deep(img) {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.msg-markdown :deep(strong) {
+  color: var(--text);
+  font-weight: 700;
+}
+
 .caret {
   color: var(--accent-text);
   animation: caret 1s step-end infinite;
@@ -739,6 +1049,147 @@ onMounted(() => {
 .conv-drawer :deep(.conv-list) {
   max-height: 60vh;
   padding: 0;
+}
+
+/* ===== 引用文档抽屉 ===== */
+.doc-drawer-content {
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.doc-drawer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.doc-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.doc-drawer-title-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-drawer-security {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.security-public {
+  background: rgba(103, 194, 58, 0.15);
+  color: #67c23a;
+}
+
+.security-internal {
+  background: rgba(230, 162, 60, 0.15);
+  color: #e6a23c;
+}
+
+.security-confidential {
+  background: rgba(245, 108, 108, 0.15);
+  color: #f56c6c;
+}
+
+.doc-drawer-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.doc-drawer-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.doc-drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.doc-drawer-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.doc-drawer-count {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.doc-drawer-summary {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--text-soft);
+  background: var(--primary-softer);
+  border: 1px solid var(--primary-border);
+}
+
+.chunk-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.chunk-highlighted {
+  background: rgba(34, 211, 238, 0.08);
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.chunk-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--tint-cyan-bg);
+  border: 1px solid var(--tint-cyan-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.chunk-chars {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.chunk-content {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--text-soft);
+}
+
+.doc-drawer-alert {
+  margin-top: 4px;
 }
 
 /* ============================================================
