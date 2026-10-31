@@ -11,4 +11,4 @@ COPY target/*.jar app.jar
 EXPOSE 8080
 
 # 使用生产环境配置启动应用
-CMD ["java", "-jar", "app.jar", "--spring.profiles.active=dev"]
+CMD ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]
