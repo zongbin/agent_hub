@@ -44,7 +44,6 @@ public class QaController {
     private static final int MAX_QUESTION_LENGTH = 2000;
 
     private final QaService qaService;
-    private final SecurityContextUtil securityContextUtil;
 
     /**
      * 流式问答 — 依次推送 delta、done/error 事件。
@@ -62,7 +61,7 @@ public class QaController {
             throw new BusinessException(400, "问题长度不能超过 " + MAX_QUESTION_LENGTH + " 字符");
         }
 
-        Long userId = securityContextUtil.getCurrentUserId();
+        Long userId = SecurityContextUtil.getCurrentUserId();
         QaService.QaResult result = qaService.ask(question, request.getConversationId(), userId);
 
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
@@ -77,7 +76,7 @@ public class QaController {
         });
 
         StringBuilder answer = new StringBuilder();
-        // 逐段推送答案增量，结束后连同引用来源一起推送 done
+        // 逐段推送答案增量，结束后推送元数据 done 事件
         result.chat().content().subscribe(
                 delta -> {
                     if (closed.get()) {
@@ -112,7 +111,7 @@ public class QaController {
                         Long messageId = qaService.saveAssistantMessage(
                                 result.conversationId(), answer.toString(), result.chat().citations());
                         emitter.send(SseEmitter.event().name("done")
-                                .data(buildAnswerVO(result, messageId, answer.toString())));
+                                .data(buildDoneVO(result, messageId)));
                     } catch (Exception e) {
                         // 保存引用来源或推送失败：给出可读错误，避免异常被静默丢弃
                         log.error("保存回答或推送结果失败: {}", e.getMessage(), e);
@@ -150,7 +149,7 @@ public class QaController {
      */
     @GetMapping("/conversations")
     public R<List<ConversationVO>> conversations() {
-        return R.ok(qaService.listConversations(securityContextUtil.getCurrentUserId()));
+        return R.ok(qaService.listConversations(SecurityContextUtil.getCurrentUserId()));
     }
 
     /**
@@ -158,7 +157,7 @@ public class QaController {
      */
     @GetMapping("/conversations/{id}/messages")
     public R<List<MessageVO>> messages(@PathVariable String id) {
-        return R.ok(qaService.listMessages(id, securityContextUtil.getCurrentUserId()));
+        return R.ok(qaService.listMessages(id, SecurityContextUtil.getCurrentUserId()));
     }
 
     /**
@@ -166,18 +165,19 @@ public class QaController {
      */
     @DeleteMapping("/conversations/{id}")
     public R<Void> deleteConversation(@PathVariable String id) {
-        qaService.deleteConversation(id, securityContextUtil.getCurrentUserId());
+        qaService.deleteConversation(id, SecurityContextUtil.getCurrentUserId());
         return R.ok();
     }
 
     /**
-     * 组装最终结果 —— 回答内容与引用来源一起返回。
+     * 组装 done 事件元数据 —— 会话 ID、消息 ID 与引用来源。
+     *
+     * <p>回答内容已通过 delta 事件逐段推送，此处不再重复携带，避免冗余传输。
      */
-    private QaAnswerVO buildAnswerVO(QaService.QaResult result, Long messageId, String answer) {
+    private QaAnswerVO buildDoneVO(QaService.QaResult result, Long messageId) {
         QaAnswerVO vo = new QaAnswerVO();
         vo.setConversationId(result.conversationId());
         vo.setMessageId(messageId);
-        vo.setAnswer(answer);
         vo.setSources(result.chat().citations());
         return vo;
     }

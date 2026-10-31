@@ -5,20 +5,23 @@ import com.leon.agenthub.permission.enums.UserRole;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Component;
 
 /**
  * SecurityContext 工具类 — 获取当前登录用户身份。
+ *
+ * <p>无状态工具类，所有方法均为静态，直接读取 {@link SecurityContextHolder} 的 ThreadLocal 上下文。
  */
-@Component
-public class SecurityContextUtil {
+public final class SecurityContextUtil {
+
+    private SecurityContextUtil() {
+    }
 
     /**
      * 获取当前登录用户 ID。
      *
      * @return 用户 ID
      */
-    public Long getCurrentUserId() {
+    public static Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new BusinessException(401, "未登录");
@@ -42,7 +45,7 @@ public class SecurityContextUtil {
      *
      * @return 用户角色枚举
      */
-    public UserRole getCurrentUserRole() {
+    public static UserRole getCurrentUserRole() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new BusinessException(401, "未登录");
@@ -64,7 +67,7 @@ public class SecurityContextUtil {
      *
      * @return 部门名称，可能为 null
      */
-    public String getCurrentUserDepartment() {
+    public static String getCurrentUserDepartment() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new BusinessException(401, "未登录");

@@ -32,7 +32,6 @@ import java.util.Map;
 public class AuditLogAspect {
 
     private final AuditLogRepository auditLogRepository;
-    private final SecurityContextUtil securityContextUtil;
 
     /**
      * 方法成功返回后记录审计日志。
@@ -56,7 +55,7 @@ public class AuditLogAspect {
 
             // 获取当前用户信息
             try {
-                Long userId = securityContextUtil.getCurrentUserId();
+                Long userId = SecurityContextUtil.getCurrentUserId();
                 auditLog.setUserId(userId);
                 // 从 Authentication 中取出 CustomUserDetails 获取用户名
                 var authentication = org.springframework.security.core.context.SecurityContextHolder

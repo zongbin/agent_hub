@@ -3,6 +3,7 @@ package com.leon.agenthub.permission.aspect;
 import com.leon.agenthub.auth.security.SecurityContextUtil;
 import com.leon.agenthub.common.util.IpUtils;
 import com.leon.agenthub.permission.annotation.RequirePermission;
+import com.leon.agenthub.permission.enums.PermissionAction;
 import com.leon.agenthub.permission.enums.SecurityLevel;
 import com.leon.agenthub.permission.enums.UserRole;
 import com.leon.agenthub.permission.exception.PermissionDeniedException;
@@ -34,17 +35,20 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PermissionAspect {
 
-    private final SecurityContextUtil securityContextUtil;
     private final PermissionService permissionService;
     private final AuditLogRepository auditLogRepository;
 
     /**
      * 前置通知 — 在方法执行前校验权限。
+     *
+     * <p>判定顺序：管理员直通 → 仅管理员接口 → 角色 × 操作 × 密级判定 → 拒绝。
      */
     @Before("@annotation(requirePermission)")
     public void checkPermission(RequirePermission requirePermission) {
-        UserRole currentUserRole = securityContextUtil.getCurrentUserRole();
+        UserRole currentUserRole = SecurityContextUtil.getCurrentUserRole();
         SecurityLevel minLevel = requirePermission.minLevel();
+        PermissionAction action = requirePermission.action();
+        boolean write = action.isWrite();
 
         // 1. 管理员直通
         if (currentUserRole == UserRole.ADMIN) {
@@ -55,30 +59,34 @@ public class PermissionAspect {
         // 2. 仅管理员可访问的接口
         if (requirePermission.adminOnly()) {
             log.warn("Non-admin role {} rejected for admin-only operation {}:{}",
-                    currentUserRole, requirePermission.resource(), requirePermission.action());
-            saveDeniedAuditLog(requirePermission.resource(), requirePermission.action(), "ADMIN");
+                    currentUserRole, requirePermission.resource(), action);
+            saveDeniedAuditLog(requirePermission.resource(), action, "ADMIN");
             throw new PermissionDeniedException("权限不足：该操作仅管理员可执行");
         }
 
-        // 3. 角色密级匹配
-        if (permissionService.canAccess(currentUserRole, minLevel)) {
-            log.debug("Role {} passes security level {} check", currentUserRole, minLevel);
+        // 3. 角色 × 操作 × 密级判定
+        //    写操作（上传、删除、授权等）要求角色具备写权限 —— 查看者/访客为只读角色，一律拒绝
+        if (permissionService.canPerformAction(currentUserRole, minLevel, write)) {
+            log.debug("Role {} passes {} check for action {}", currentUserRole, minLevel, action);
             return;
         }
 
         // 4. 拒绝 — 记录审计日志
-        saveDeniedAuditLog(requirePermission.resource(), requirePermission.action(), minLevel.name());
+        saveDeniedAuditLog(requirePermission.resource(), action, minLevel.name());
+        if (write) {
+            throw new PermissionDeniedException("权限不足：当前角色为只读角色，不能执行" + action.getLabel() + "操作");
+        }
         throw new PermissionDeniedException("权限不足：需要 " + minLevel + " 级别访问权限");
     }
 
     /**
      * 记录权限拒绝审计日志。
      */
-    private void saveDeniedAuditLog(String resource, String action, String securityLevel) {
+    private void saveDeniedAuditLog(String resource, PermissionAction action, String securityLevel) {
         try {
             AuditLogEntity auditLog = new AuditLogEntity();
             try {
-                auditLog.setUserId(securityContextUtil.getCurrentUserId());
+                auditLog.setUserId(SecurityContextUtil.getCurrentUserId());
             } catch (Exception e) {
                 auditLog.setUserId(null);
             }

@@ -8,6 +8,7 @@ import com.leon.agenthub.knowledge.enums.DocumentStatus;
 import com.leon.agenthub.knowledge.model.Document;
 import com.leon.agenthub.knowledge.repository.DocumentRepository;
 import com.leon.agenthub.permission.annotation.RequirePermission;
+import com.leon.agenthub.permission.enums.PermissionAction;
 import com.leon.agenthub.permission.enums.SecurityLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +36,6 @@ public class DocumentUploadService {
 
     private final FileStorageService fileStorageService;
     private final DocumentRepository documentRepository;
-    private final SecurityContextUtil securityContextUtil;
     private final ApplicationEventPublisher eventPublisher;
     private final DocumentIndexFailureHandler failureHandler;
 
@@ -47,12 +47,12 @@ public class DocumentUploadService {
      * @return 文档视图对象
      */
     @Transactional
-    @RequirePermission(resource = "DOCUMENT", action = "WRITE", minLevel = SecurityLevel.PUBLIC)
+    @RequirePermission(resource = "DOCUMENT", action = PermissionAction.WRITE, minLevel = SecurityLevel.PUBLIC)
     @AuditLog(action = "UPLOAD", resource = "DOCUMENT")
     public DocumentVO upload(DocumentUploadRequest request, MultipartFile file) {
         // 获取当前用户信息
-        Long userId = securityContextUtil.getCurrentUserId();
-        String department = securityContextUtil.getCurrentUserDepartment();
+        Long userId = SecurityContextUtil.getCurrentUserId();
+        String department = SecurityContextUtil.getCurrentUserDepartment();
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null || originalFilename.isBlank()) {
             originalFilename = "unnamed";

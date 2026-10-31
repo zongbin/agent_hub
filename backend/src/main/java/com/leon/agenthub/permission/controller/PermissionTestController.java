@@ -4,6 +4,7 @@ import com.leon.agenthub.audit.annotation.AuditLog;
 import com.leon.agenthub.auth.security.SecurityContextUtil;
 import com.leon.agenthub.common.response.R;
 import com.leon.agenthub.permission.annotation.RequirePermission;
+import com.leon.agenthub.permission.enums.PermissionAction;
 import com.leon.agenthub.permission.enums.SecurityLevel;
 import com.leon.agenthub.permission.enums.UserRole;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,36 +25,34 @@ import java.io.Serializable;
 @RequiredArgsConstructor
 public class PermissionTestController {
 
-    private final SecurityContextUtil securityContextUtil;
-
     /**
      * 测试：公开级别访问（所有角色可访问）。
      */
     @GetMapping("/public")
-    @RequirePermission(resource = "DOCUMENT", action = "READ", minLevel = SecurityLevel.PUBLIC)
+    @RequirePermission(resource = "DOCUMENT", action = PermissionAction.READ, minLevel = SecurityLevel.PUBLIC)
     @AuditLog(action = "VIEW_PUBLIC", resource = "DOCUMENT")
     public R<String> testPublicAccess(HttpServletRequest httpRequest) {
-        return R.ok("公开文档访问成功 - 当前角色: " + securityContextUtil.getCurrentUserRole());
+        return R.ok("公开文档访问成功 - 当前角色: " + SecurityContextUtil.getCurrentUserRole());
     }
 
     /**
      * 测试：内部级别访问（仅正式员工可访问）。
      */
     @GetMapping("/internal")
-    @RequirePermission(resource = "DOCUMENT", action = "READ", minLevel = SecurityLevel.INTERNAL)
+    @RequirePermission(resource = "DOCUMENT", action = PermissionAction.READ, minLevel = SecurityLevel.INTERNAL)
     @AuditLog(action = "VIEW_INTERNAL", resource = "DOCUMENT")
     public R<String> testInternalAccess(HttpServletRequest httpRequest) {
-        return R.ok("内部文档访问成功 - 当前角色: " + securityContextUtil.getCurrentUserRole());
+        return R.ok("内部文档访问成功 - 当前角色: " + SecurityContextUtil.getCurrentUserRole());
     }
 
     /**
      * 测试：机密级别访问（仅授权人员可访问）。
      */
     @GetMapping("/confidential")
-    @RequirePermission(resource = "DOCUMENT", action = "READ", minLevel = SecurityLevel.CONFIDENTIAL)
+    @RequirePermission(resource = "DOCUMENT", action = PermissionAction.READ, minLevel = SecurityLevel.CONFIDENTIAL)
     @AuditLog(action = "VIEW_CONFIDENTIAL", resource = "DOCUMENT")
     public R<String> testConfidentialAccess(HttpServletRequest httpRequest) {
-        return R.ok("机密文档访问成功 - 当前角色: " + securityContextUtil.getCurrentUserRole());
+        return R.ok("机密文档访问成功 - 当前角色: " + SecurityContextUtil.getCurrentUserRole());
     }
 
     /**
@@ -62,9 +61,9 @@ public class PermissionTestController {
     @GetMapping("/whoami")
     public R<UserIdentity> getCurrentIdentity() {
         UserIdentity identity = new UserIdentity();
-        identity.setUserId(securityContextUtil.getCurrentUserId());
-        identity.setRole(securityContextUtil.getCurrentUserRole().getCode());
-        identity.setDepartment(securityContextUtil.getCurrentUserDepartment());
+        identity.setUserId(SecurityContextUtil.getCurrentUserId());
+        identity.setRole(SecurityContextUtil.getCurrentUserRole().getCode());
+        identity.setDepartment(SecurityContextUtil.getCurrentUserDepartment());
         return R.ok(identity);
     }
 

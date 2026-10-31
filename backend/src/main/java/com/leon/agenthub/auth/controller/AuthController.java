@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
-    private final SecurityContextUtil securityContextUtil;
 
     /**
      * 用户登录。
@@ -57,7 +56,7 @@ public class AuthController {
      */
     @GetMapping("/me")
     public R<UserInfo> getCurrentUser() {
-        Long userId = securityContextUtil.getCurrentUserId();
+        Long userId = SecurityContextUtil.getCurrentUserId();
         return R.ok(authService.getCurrentUser(userId));
     }
 
@@ -69,7 +68,7 @@ public class AuthController {
      */
     @PutMapping("/me")
     public R<UserInfo> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
-        Long userId = securityContextUtil.getCurrentUserId();
+        Long userId = SecurityContextUtil.getCurrentUserId();
         return R.ok(authService.updateProfile(userId, request));
     }
 
@@ -81,7 +80,7 @@ public class AuthController {
      */
     @PutMapping("/me/password")
     public R<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
-        Long userId = securityContextUtil.getCurrentUserId();
+        Long userId = SecurityContextUtil.getCurrentUserId();
         authService.changePassword(userId, request);
         return R.ok();
     }

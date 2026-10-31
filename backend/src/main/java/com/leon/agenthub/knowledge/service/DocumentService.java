@@ -11,6 +11,7 @@ import com.leon.agenthub.knowledge.model.Document;
 import com.leon.agenthub.knowledge.repository.DocumentChunkRepository;
 import com.leon.agenthub.knowledge.repository.DocumentRepository;
 import com.leon.agenthub.permission.annotation.RequirePermission;
+import com.leon.agenthub.permission.enums.PermissionAction;
 import com.leon.agenthub.permission.service.DocumentAccessChecker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,6 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
-    private final SecurityContextUtil securityContextUtil;
     private final DocumentAccessChecker documentAccessChecker;
     private final VectorStoreService vectorStoreService;
 
@@ -46,10 +46,10 @@ public class DocumentService {
      * @param query 查询条件（关键字、密级、状态、分页）
      * @return 当前用户可见的文档分页
      */
-    @RequirePermission(resource = "DOCUMENT", action = "READ")
+    @RequirePermission(resource = "DOCUMENT", action = PermissionAction.READ)
     public Page<DocumentVO> list(DocumentQuery query) {
-        Long userId = securityContextUtil.getCurrentUserId();
-        String userRole = securityContextUtil.getCurrentUserRole().getCode();
+        Long userId = SecurityContextUtil.getCurrentUserId();
+        String userRole = SecurityContextUtil.getCurrentUserRole().getCode();
 
         int page = query.getPageIndex();
         int size = query.getPageSize();
@@ -69,7 +69,7 @@ public class DocumentService {
      * @param id 文档 ID
      * @return 文档视图对象
      */
-    @RequirePermission(resource = "DOCUMENT", action = "READ")
+    @RequirePermission(resource = "DOCUMENT", action = PermissionAction.READ)
     public DocumentVO detail(Long id) {
         Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(404, "文档不存在"));
@@ -84,7 +84,7 @@ public class DocumentService {
      * @param id 文档 ID
      * @return 分块视图列表
      */
-    @RequirePermission(resource = "DOCUMENT", action = "READ")
+    @RequirePermission(resource = "DOCUMENT", action = PermissionAction.READ)
     public List<DocumentChunkVO> listChunks(Long id) {
         Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(404, "文档不存在"));
@@ -103,7 +103,7 @@ public class DocumentService {
      * @param id 文档 ID
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "DOCUMENT", action = "WRITE")
+    @RequirePermission(resource = "DOCUMENT", action = PermissionAction.WRITE)
     @AuditLog(action = "DELETE", resource = "DOCUMENT")
     public void delete(Long id) {
         Document document = documentRepository.findById(id)
@@ -125,8 +125,8 @@ public class DocumentService {
      * 文档级访问校验：角色密级 + 文档级授权（读）。
      */
     private void checkAccess(Document document, String action) {
-        Long userId = securityContextUtil.getCurrentUserId();
-        String userRole = securityContextUtil.getCurrentUserRole().getCode();
+        Long userId = SecurityContextUtil.getCurrentUserId();
+        String userRole = SecurityContextUtil.getCurrentUserRole().getCode();
         if (!documentAccessChecker.canAccess(userId, userRole, document.getId(), document.getSecurityLevel())) {
             throw new BusinessException(403, "权限不足，无法" + action + "该文档");
         }
@@ -138,8 +138,8 @@ public class DocumentService {
      * <p>只读（READ）授权只能查看，不能删除等写操作。
      */
     private void checkWriteAccess(Document document, String action) {
-        Long userId = securityContextUtil.getCurrentUserId();
-        String userRole = securityContextUtil.getCurrentUserRole().getCode();
+        Long userId = SecurityContextUtil.getCurrentUserId();
+        String userRole = SecurityContextUtil.getCurrentUserRole().getCode();
         if (!documentAccessChecker.canWrite(userId, userRole, document.getId(), document.getSecurityLevel())) {
             throw new BusinessException(403, "权限不足，无法" + action + "该文档（需要读写授权）");
         }

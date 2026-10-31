@@ -1,27 +1,19 @@
 package com.leon.agenthub.common.llm;
 
-import java.util.List;
-import java.util.Map;
-
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
-import org.springframework.ai.chat.client.advisor.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.SystemPromptTemplate;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.leon.agenthub.auth.security.SecurityContextUtil;
 import com.leon.agenthub.common.advisor.MyLoggerAdvisor;
 import com.leon.agenthub.common.advisor.SensitiveWordAdvisor;
-import com.leon.agenthub.common.client.LlmSummaryResult;
 import com.leon.agenthub.common.exception.BusinessException;
 import com.leon.agenthub.permission.enums.UserRole;
 import com.leon.agenthub.qa.rag.RagContext;
 import com.leon.agenthub.qa.rag.RagRetriever;
 
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
@@ -39,10 +31,6 @@ public class ChatService {
     /** RAG 检索器 — 提供参考资料与引用来源 */
     private final RagRetriever ragRetriever;
 
-    @Resource
-    private SecurityContextUtil securityContextUtil;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ChatService(ChatModel dashscopeChatModel, ChatMemory databaseChatMemory, RagRetriever ragRetriever) {
 
@@ -53,21 +41,6 @@ public class ChatService {
                         new SensitiveWordAdvisor())
                 .build();
         this.ragRetriever = ragRetriever;
-    }
-
-    /**
-     * 同步调用 LLM 生成文本。
-     *
-     * @param prompt 提示词
-     * @return 生成的文本内容
-     */
-    public String chat(String prompt) {
-        try {
-            return chatClient.prompt(prompt).call().content();
-        } catch (Exception e) {
-            log.error("LLM chat call failed: {}", e.getMessage(), e);
-            throw new BusinessException(500, "LLM 调用失败: " + e.getMessage());
-        }
     }
 
     /**
@@ -82,8 +55,8 @@ public class ChatService {
      */
     public ChatStreamResult chatStream(String question, String chatId) {
 
-        Long userId = securityContextUtil.getCurrentUserId();
-        UserRole userRole = securityContextUtil.getCurrentUserRole();
+        Long userId = SecurityContextUtil.getCurrentUserId();
+        UserRole userRole = SecurityContextUtil.getCurrentUserRole();
 
         // 1. 权限感知召回参考资料
         RagContext rag = ragRetriever.retrieve(question, userId, userRole);
@@ -119,80 +92,5 @@ public class ChatService {
             return e.getClass().getSimpleName();
         }
         return message.length() > 300 ? message.substring(0, 300) : message;
-    }
-
-    /**
-     * 生成文档摘要和自动标签。
-     *
-     * @param text 文档文本内容（过长时会被截断）
-     * @return 摘要和标签结果
-     */
-    public LlmSummaryResult generateSummaryAndTags(String text) {
-        // 截断过长文本（取前 5000 字符，节省 token）
-        String truncatedText = text.length() > 5000 ? text.substring(0, 5000) : text;
-
-        String promptText = """
-                你是一个企业知识助手。请对以下文档生成：
-                1. 一个简洁的摘要（不超过 200 字）
-                2. 3-5 个标签关键词（用逗号分隔）
-
-                请按以下 JSON 格式返回：
-                {"summary": "摘要内容", "tags": ["标签1", "标签2", "标签3"]}
-
-                文档内容：
-                """ + truncatedText;
-
-        try {
-            String content = chatClient.prompt(promptText)
-                    .call()
-                    .content();
-
-            return parseSummaryResponse(content, text);
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Summary generation failed: {}", e.getMessage(), e);
-            throw new BusinessException(500, "摘要生成失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 解析 LLM 返回的 JSON 摘要结果。
-     */
-    private LlmSummaryResult parseSummaryResponse(String content, String originalText) {
-        try {
-            // 简单提取 JSON 部分
-            int jsonStart = content.indexOf("{");
-            int jsonEnd = content.lastIndexOf("}");
-            if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                String json = content.substring(jsonStart, jsonEnd + 1);
-                @SuppressWarnings("unchecked")
-                Map<String, Object> result = objectMapper.readValue(json, Map.class);
-
-                String summary = (String) result.getOrDefault("summary", "");
-                if (summary.length() > 200) {
-                    summary = summary.substring(0, 200);
-                }
-
-                Object tagsObj = result.get("tags");
-                String[] tags;
-                if (tagsObj instanceof List<?> tagList) {
-                    tags = tagList.stream().map(Object::toString).toArray(String[]::new);
-                } else if (tagsObj instanceof String tagStr) {
-                    tags = tagStr.split("[,，]");
-                } else {
-                    tags = new String[0];
-                }
-
-                return new LlmSummaryResult(summary, tags);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to parse LLM summary response, using fallback", e);
-        }
-
-        // 降级：使用文本前 200 字作为摘要
-        return new LlmSummaryResult(
-                originalText.substring(0, Math.min(200, originalText.length())),
-                new String[0]);
     }
 }
