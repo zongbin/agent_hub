@@ -20,12 +20,6 @@ spring:
         options:
           model: qwen-plus
           temperature: 0.7
-    # PgVector VectorStore（需要引入 spring-ai-pgvector-store 依赖后启用）
-    # vectorstore:
-    #   pgvector:
-    #     initialize-schema: true
-    #     dimensions: 1024
-    #     distance-type: COSINE_DISTANCE
   servlet:
     multipart:
       max-file-size: 100MB
@@ -39,14 +33,6 @@ spring:
     username: ${DB_USER:agenthub}
     password: ${DB_PASS:agenthub}
     driver-class-name: org.postgresql.Driver
-  # Redis 配置已临时注释（未部署 Redis，恢复依赖后取消注释）
-  # data:
-  #   redis:
-  #     host: ${REDIS_HOST:localhost}
-  #     port: ${REDIS_PORT:6379}
-  #     password: ${REDIS_PASS:}
-  #     database: ${REDIS_DB:0}
-  # JPA / Hibernate — 自动管理数据库 schema
   jpa:
     hibernate:
       ddl-auto: update
