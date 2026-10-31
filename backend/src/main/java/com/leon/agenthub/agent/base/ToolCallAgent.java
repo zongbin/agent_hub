@@ -25,7 +25,9 @@ import lombok.extern.slf4j.Slf4j;
  * 工具调用代理 — 实现 think（决定调用哪些工具）与 act（执行工具并回填上下文）。
  *
  * <p>禁用 Spring AI 内置的工具调用机制（{@code internalToolExecutionEnabled=false} 语义），
- * 由本类自行维护消息上下文，以便把每一步的思考与工具结果逐步推送给前端。
+ * 由本类自行维护消息上下文，以便把每一步的思考与工具结果逐步上报给事件监听器。
+ *
+ * <p>事件上报顺序（每轮）：步骤开始 → 步骤进展（思考内容 / 工具调用） → 步骤完成（工具结果）。
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -43,6 +45,9 @@ public class ToolCallAgent extends ReActAgent {
 
     /** 禁用内置工具调用机制，自己维护选项和消息上下文 */
     private final ChatOptions chatOptions;
+
+    /** 模型最近一次输出的正文 — 作为最终回答的兜底来源 */
+    private String lastAssistantText = "";
 
     public ToolCallAgent(ToolCallback[] availableTools) {
         super();
@@ -86,16 +91,37 @@ public class ToolCallAgent extends ReActAgent {
                             toolCall.arguments()))
                     .collect(Collectors.joining("\n"));
             log.info(toolCallInfo);
+
+            if (result != null && !result.isBlank()) {
+                lastAssistantText = result;
+            }
+
+            // 本步名称 = 本轮计划调用的工具名（无工具时表示模型直接作答）
+            String stepName = toolCallList.isEmpty()
+                    ? "回答"
+                    : toolCallList.stream().map(AssistantMessage.ToolCall::name).distinct()
+                            .collect(Collectors.joining(" / "));
+            emitStepStart(stepName);
+            if (result != null && !result.isBlank()) {
+                emitStepProgress(result);
+            }
+
             if (toolCallList.isEmpty()) {
                 // 只有不调用工具时，才记录助手消息
                 getMessageList().add(assistantMessage);
+                // 模型直接作答，本步即完成
+                emitStepComplete(null, result);
                 return false;
+            }
+            if (!toolCallInfo.isBlank()) {
+                emitStepProgress(toolCallInfo);
             }
             // 需要调用工具时无需记录助手消息 —— 调用工具时会自动记录
             return true;
         } catch (Exception e) {
             log.error("{}的思考过程遇到了问题: {}", getName(), e.getMessage());
             getMessageList().add(new AssistantMessage("处理时遇到错误: " + e.getMessage()));
+            emitError("思考过程出错: " + e.getMessage());
             return false;
         }
     }
@@ -121,6 +147,12 @@ public class ToolCallAgent extends ReActAgent {
         String results = toolResponseMessage.getResponses().stream()
                 .map(response -> "工具 " + response.name() + " 完成了它的任务！结果: " + response.responseData())
                 .collect(Collectors.joining("\n"));
+        // 本步完成 — 工具名与执行结果一并上报，前端按步骤序号归组
+        String toolNames = toolResponseMessage.getResponses().stream()
+                .map(response -> response.name())
+                .distinct()
+                .collect(Collectors.joining(" / "));
+        emitStepComplete(toolNames, results);
         // 判断是否调用了终止工具
         boolean terminateToolCalled = toolResponseMessage.getResponses().stream()
                 .anyMatch(response -> "doTerminate".equals(response.name()));
@@ -129,5 +161,15 @@ public class ToolCallAgent extends ReActAgent {
         }
         log.info(results);
         return results;
+    }
+
+    /**
+     * 最终结果 — 取模型最近一次输出的正文。
+     *
+     * @return 最终回答文本
+     */
+    @Override
+    protected String resolveFinalResult() {
+        return lastAssistantText == null ? "" : lastAssistantText;
     }
 }

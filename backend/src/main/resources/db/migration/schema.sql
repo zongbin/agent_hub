@@ -17,6 +17,8 @@ DROP TABLE IF EXISTS qa_sessions CASCADE;
 DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS agent_steps CASCADE;
 DROP TABLE IF EXISTS agent_tasks CASCADE;
+DROP TABLE IF EXISTS agent_messages CASCADE;
+DROP TABLE IF EXISTS agent_conversations CASCADE;
 DROP TABLE IF EXISTS doc_permissions CASCADE;
 DROP TABLE IF EXISTS document_chunks CASCADE;
 DROP TABLE IF EXISTS documents CASCADE;
@@ -29,6 +31,7 @@ DROP SEQUENCE IF EXISTS document_chunks_id_seq;
 DROP SEQUENCE IF EXISTS doc_permissions_id_seq;
 DROP SEQUENCE IF EXISTS agent_tasks_id_seq;
 DROP SEQUENCE IF EXISTS agent_steps_id_seq;
+DROP SEQUENCE IF EXISTS agent_messages_id_seq;
 DROP SEQUENCE IF EXISTS audit_logs_id_seq;
 DROP SEQUENCE IF EXISTS qa_sessions_id_seq;
 DROP SEQUENCE IF EXISTS qa_feedback_id_seq;
@@ -145,6 +148,31 @@ CREATE TABLE agent_steps (
     updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_step_task ON agent_steps(task_id);
+
+-- ---------------------------------------------------------------------
+-- 7.1 Agent 会话表（超级智能体多轮对话容器，与 qa_conversations 物理隔离）
+-- ---------------------------------------------------------------------
+CREATE TABLE agent_conversations (
+    id          VARCHAR(64) PRIMARY KEY,                 -- 会话 ID（UUID 字符串）
+    user_id     BIGINT       NOT NULL,
+    title       VARCHAR(200) NOT NULL,                   -- 取首问截断
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_agent_conv_user ON agent_conversations(user_id, updated_at DESC);
+
+-- ---------------------------------------------------------------------
+-- 7.2 Agent 消息表（步骤轨迹以 JSONB 存储，供前端回看时还原时间线）
+-- ---------------------------------------------------------------------
+CREATE TABLE agent_messages (
+    id              BIGSERIAL PRIMARY KEY,
+    conversation_id VARCHAR(64) NOT NULL,                 -- 关联 agent_conversations.id
+    role            VARCHAR(16) NOT NULL,                 -- USER / ASSISTANT
+    content         TEXT        NOT NULL,                 -- 用户提问 / 智能体最终回答
+    steps_json      JSONB,                                -- 步骤轨迹（助手消息）
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_agent_msg_conv ON agent_messages(conversation_id, id);
 
 -- ---------------------------------------------------------------------
 -- 8. 审计日志表

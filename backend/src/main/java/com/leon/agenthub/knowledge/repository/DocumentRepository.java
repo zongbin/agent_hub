@@ -34,15 +34,15 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
      * @return 分页文档列表
      */
     /**
-     * 使用原生 SQL：数据库中 summary 列为 bytea 类型（schema.sql 声明为 TEXT），
-     * 需用 convert_from(d.summary, 'UTF8') 显式将 bytea 转为 text，
-     * 否则 LOWER() 会报 "function lower(bytea) does not exist"。
-     * title 与 file_type 为 character varying，直接使用 LOWER() 即可。
+     * 使用原生 SQL：线上库中 title / file_type 为 character varying、summary 为 text，
+     * 均可直接使用 LOWER()，无需任何类型转换。
+     * <p>注意：不要写成 COALESCE(d.summary, ''::bytea) —— summary 是 text，
+     * 与 bytea 字面量混合会报 "COALESCE types text and bytea cannot be matched"。
      */
     @Query(value = "SELECT d.* FROM documents d WHERE " +
            "d.deleted = 0 AND " +
            "(:keyword IS NULL OR LOWER(d.title) LIKE '%' || LOWER(:keyword) || '%' " +
-           " OR LOWER(convert_from(COALESCE(d.summary, ''::bytea), 'UTF8')) LIKE '%' || LOWER(:keyword) || '%' " +
+           " OR LOWER(COALESCE(d.summary, '')) LIKE '%' || LOWER(:keyword) || '%' " +
            " OR LOWER(d.file_type) LIKE '%' || LOWER(:keyword) || '%') AND " +
            "(:securityLevel IS NULL OR d.security_level = :securityLevel) AND " +
            "(:statusCode IS NULL OR d.status = :statusCode) AND " +
@@ -54,7 +54,7 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
            countQuery = "SELECT COUNT(d.*) FROM documents d WHERE " +
            "d.deleted = 0 AND " +
            "(:keyword IS NULL OR LOWER(d.title) LIKE '%' || LOWER(:keyword) || '%' " +
-           " OR LOWER(convert_from(COALESCE(d.summary, ''::bytea), 'UTF8')) LIKE '%' || LOWER(:keyword) || '%' " +
+           " OR LOWER(COALESCE(d.summary, '')) LIKE '%' || LOWER(:keyword) || '%' " +
            " OR LOWER(d.file_type) LIKE '%' || LOWER(:keyword) || '%') AND " +
            "(:securityLevel IS NULL OR d.security_level = :securityLevel) AND " +
            "(:statusCode IS NULL OR d.status = :statusCode) AND " +

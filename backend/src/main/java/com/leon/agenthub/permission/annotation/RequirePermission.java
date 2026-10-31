@@ -1,5 +1,6 @@
 package com.leon.agenthub.permission.annotation;
 
+import com.leon.agenthub.permission.enums.PermissionAction;
 import com.leon.agenthub.permission.enums.SecurityLevel;
 
 import java.lang.annotation.ElementType;
@@ -12,7 +13,7 @@ import java.lang.annotation.Target;
  *
  * <p>使用示例：
  * <pre>{@code
- * @RequirePermission(resource = "DOCUMENT", action = "READ", minLevel = SecurityLevel.INTERNAL)
+ * @RequirePermission(resource = "DOCUMENT", action = PermissionAction.READ, minLevel = SecurityLevel.INTERNAL)
  * public Document getDocument(String docId) { ... }
  * }</pre>
  */
@@ -26,9 +27,9 @@ public @interface RequirePermission {
     String resource();
 
     /**
-     * 操作类型（READ/WRITE/DELETE/EXECUTE）。
+     * 操作类型（READ / WRITE / DELETE）。
      */
-    String action();
+    PermissionAction action();
 
     /**
      * 最低安全密级要求。

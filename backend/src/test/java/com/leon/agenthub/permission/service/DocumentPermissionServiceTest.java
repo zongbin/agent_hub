@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,7 +48,8 @@ class DocumentPermissionServiceTest {
         documentRepository = mock(DocumentRepository.class);
         userRepository = mock(UserRepository.class);
         service = new DocumentPermissionService(
-                docPermissionRepository, documentRepository, userRepository, new DocPermissionConverter());
+                docPermissionRepository, documentRepository, userRepository, new DocPermissionConverter(),
+                new DocumentAccessChecker(docPermissionRepository));
 
         Document document = new Document();
         document.setId(10L);
@@ -56,13 +58,22 @@ class DocumentPermissionServiceTest {
         when(documentRepository.findById(10L)).thenReturn(Optional.of(document));
         when(documentRepository.findAllById(any())).thenReturn(List.of(document));
 
+        // 编辑者 —— 可被授予读写权限
         User user = new User();
         user.setId(99L);
         user.setUsername("zhangsan");
         user.setRealName("张三");
-        user.setRole("VIEWER");
+        user.setRole("EDITOR");
         when(userRepository.findById(99L)).thenReturn(Optional.of(user));
         when(userRepository.findAllById(any())).thenReturn(List.of(user));
+
+        // 查看者 —— 只读角色
+        User viewer = new User();
+        viewer.setId(100L);
+        viewer.setUsername("lisi");
+        viewer.setRealName("李四");
+        viewer.setRole("VIEWER");
+        when(userRepository.findById(100L)).thenReturn(Optional.of(viewer));
     }
 
     @Test
@@ -123,6 +134,16 @@ class DocumentPermissionServiceTest {
         BusinessException ex = assertThrows(BusinessException.class, () -> service.grant(10L, 99L, "DELETE"));
 
         assertEquals(400, ex.getCode());
+    }
+
+    @Test
+    void 只读角色不能被授予读写权限() {
+        when(docPermissionRepository.findByDocumentAndUser(10L, 100L)).thenReturn(null);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.grant(10L, 100L, "WRITE"));
+
+        assertEquals(400, ex.getCode());
+        verify(docPermissionRepository, never()).save(any(DocPermission.class));
     }
 
     @Test

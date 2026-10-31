@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { DocPermissionItem, UserItem } from '@/types/permission'
 import type { DocumentVO } from '@/api/knowledge'
 import { permissionApi } from '@/api/permission'
 import { knowledgeApi } from '@/api/knowledge'
 import { useResponsive } from '@/composables/useResponsive'
+import { isReadOnlyRole } from '@/utils/permission'
 
 const { isMobile } = useResponsive()
 
@@ -49,10 +50,23 @@ const securityTagType: Record<string, 'success' | 'warning' | 'danger'> = {
   CONFIDENTIAL: 'danger'
 }
 
-const permissionOptions = [
-  { label: '只读', value: 'READ' },
-  { label: '读写', value: 'WRITE' }
-]
+/** 选中的被授权人 */
+const selectedGrantee = computed<UserItem | undefined>(() =>
+  users.value.find((u) => u.id === grantForm.userId)
+)
+
+/** 选中的被授权人是否为只读角色（查看者 / 访客）—— 只读角色只能授予只读权限 */
+const granteeIsReadOnly = computed(() => isReadOnlyRole(selectedGrantee.value?.role))
+
+/** 权限类型选项 —— 只读角色不提供「读写」 */
+const permissionOptions = computed(() =>
+  granteeIsReadOnly.value
+    ? [{ label: '只读', value: 'READ' }]
+    : [
+        { label: '只读', value: 'READ' },
+        { label: '读写', value: 'WRITE' }
+      ]
+)
 
 /** 角色中文名 */
 const roleLabelMap: Record<string, string> = {
@@ -137,6 +151,10 @@ const handleGrant = async () => {
     ElMessage.warning('请选择被授权用户')
     return
   }
+  if (grantForm.permission === 'WRITE' && granteeIsReadOnly.value) {
+    ElMessage.warning('查看者与访客为只读角色，不能授予读写权限')
+    return
+  }
   granting.value = true
   try {
     await permissionApi.grantDocumentPermission(grantForm.documentId, {
@@ -207,6 +225,10 @@ watch(
     if (grant) {
       grantForm.permission = grant.permission
     }
+    // 只读角色（查看者 / 访客）只能保留只读授权
+    if (granteeIsReadOnly.value) {
+      grantForm.permission = 'READ'
+    }
   }
 )
 
@@ -234,6 +256,8 @@ onMounted(() => {
         <br />
         <b>只读(READ)</b>：仅可查看详情与在问答中检索该文档内容；
         <b>读写(WRITE)</b>：额外允许删除等写操作。对同一用户重复授权会覆盖原有权限。
+        <br />
+        <b>查看者(VIEWER)与访客(GUEST)</b> 为只读角色，不能被授予读写权限，也不能上传或删除文档。
       </div>
     </el-alert>
 

@@ -111,7 +111,16 @@ class DocumentAccessCheckerTest {
         when(docPermissionRepository.existsByDocumentIdAndGranteeIdAndPermission(10L, 99L, "WRITE"))
                 .thenReturn(true);
 
-        assertTrue(checker.canWrite(99L, "VIEWER", 10L, "CONFIDENTIAL"));
+        assertTrue(checker.canWrite(99L, "EDITOR", 10L, "CONFIDENTIAL"));
+    }
+
+    @Test
+    void 只读角色即使持有写授权也不能写() {
+        when(docPermissionRepository.existsByDocumentIdAndGranteeIdAndPermission(10L, 99L, "WRITE"))
+                .thenReturn(true);
+
+        assertFalse(checker.canWrite(99L, "VIEWER", 10L, "CONFIDENTIAL"));
+        assertFalse(checker.canWrite(99L, "GUEST", 10L, "PUBLIC"));
     }
 
     @Test
@@ -119,6 +128,6 @@ class DocumentAccessCheckerTest {
         when(docPermissionRepository.existsByDocumentIdAndGranteeIdAndPermission(10L, 99L, "WRITE"))
                 .thenReturn(false);
 
-        assertFalse(checker.canWrite(99L, "VIEWER", 10L, "CONFIDENTIAL"));
+        assertFalse(checker.canWrite(99L, "EDITOR", 10L, "CONFIDENTIAL"));
     }
 }

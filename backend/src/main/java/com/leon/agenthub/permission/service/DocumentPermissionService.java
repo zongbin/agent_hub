@@ -18,6 +18,7 @@ import com.leon.agenthub.common.exception.BusinessException;
 import com.leon.agenthub.knowledge.model.Document;
 import com.leon.agenthub.knowledge.repository.DocumentRepository;
 import com.leon.agenthub.permission.annotation.RequirePermission;
+import com.leon.agenthub.permission.enums.PermissionAction;
 import com.leon.agenthub.permission.converter.DocPermissionConverter;
 import com.leon.agenthub.permission.dto.DocPermissionVO;
 import com.leon.agenthub.permission.enums.DocumentPermissionType;
@@ -44,6 +45,7 @@ public class DocumentPermissionService {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final DocPermissionConverter converter;
+    private final DocumentAccessChecker documentAccessChecker;
 
     /**
      * 检查用户是否拥有指定文档的访问权限。
@@ -67,7 +69,7 @@ public class DocumentPermissionService {
      * @return 分页授权列表（含文档标题与被授权人信息）
      */
     @Transactional(readOnly = true)
-    @RequirePermission(resource = "DOCUMENT_PERMISSION", action = "READ", adminOnly = true)
+    @RequirePermission(resource = "DOCUMENT_PERMISSION", action = PermissionAction.READ, adminOnly = true)
     public PageResult<DocPermissionVO> listAll(PageQuery query) {
         Page<DocPermission> page = docPermissionRepository.findAllByOrderByCreatedAtDesc(query.toPageRequest());
         List<DocPermissionVO> list = enrich(page.getContent());
@@ -86,7 +88,7 @@ public class DocumentPermissionService {
      * @return 授权记录列表
      */
     @Transactional(readOnly = true)
-    @RequirePermission(resource = "DOCUMENT_PERMISSION", action = "READ", adminOnly = true)
+    @RequirePermission(resource = "DOCUMENT_PERMISSION", action = PermissionAction.READ, adminOnly = true)
     public List<DocPermissionVO> listByDocument(Long documentId) {
         return enrich(docPermissionRepository.findByDocumentId(documentId));
     }
@@ -102,7 +104,7 @@ public class DocumentPermissionService {
      * @return 授权后的记录（含文档与用户信息）
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "DOCUMENT_PERMISSION", action = "WRITE", adminOnly = true)
+    @RequirePermission(resource = "DOCUMENT_PERMISSION", action = PermissionAction.WRITE, adminOnly = true)
     public DocPermissionVO grant(Long documentId, Long userId, String permission) {
         if (documentId == null || userId == null) {
             throw new BusinessException(400, "文档与用户不能为空");
@@ -112,6 +114,11 @@ public class DocumentPermissionService {
                 .orElseThrow(() -> new BusinessException(404, "文档不存在"));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(404, "用户不存在"));
+
+        // 只读角色（查看者 / 访客）不能被授予写权限
+        if (type == DocumentPermissionType.WRITE && !documentAccessChecker.isWriteRole(user.getRole())) {
+            throw new BusinessException(400, "查看者与访客为只读角色，不能授予读写权限");
+        }
 
         DocPermission existing = docPermissionRepository.findByDocumentAndUser(documentId, userId);
         DocPermission saved;
@@ -143,7 +150,7 @@ public class DocumentPermissionService {
      * @return true 表示成功删除
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "DOCUMENT_PERMISSION", action = "WRITE", adminOnly = true)
+    @RequirePermission(resource = "DOCUMENT_PERMISSION", action = PermissionAction.WRITE, adminOnly = true)
     public boolean revoke(Long documentId, Long userId) {
         if (documentId == null || userId == null) {
             throw new BusinessException(400, "文档与用户不能为空");

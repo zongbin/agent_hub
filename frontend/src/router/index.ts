@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { getToken, getUser } from '@/utils/storage'
 import type { UserInfo } from '@/types/auth'
+import { canManageDocuments } from '@/utils/permission'
 
 /**
  * 路由配置 — 登录页公开，其余需认证。
@@ -34,7 +35,7 @@ const routes: RouteRecordRaw[] = [
         path: 'knowledge/upload',
         name: 'KnowledgeUpload',
         component: () => import('@/views/Knowledge/Upload.vue'),
-        meta: { title: '上传文档' }
+        meta: { title: '上传文档', writeRequired: true }
       },
       {
         path: 'knowledge/:id',
@@ -51,7 +52,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'agent',
         name: 'Agent',
-        component: () => import('@/views/QAM/index.vue'),
+        component: () => import('@/views/Agent/index.vue'),
         meta: { title: '超级智能体' }
       },
       {
@@ -101,6 +102,14 @@ router.beforeEach((to) => {
     const user = getUser<UserInfo>()
     if (user?.role !== 'ADMIN') {
       return { path: '/dashboard' }
+    }
+  }
+
+  // 校验写权限路由（查看者与访客为只读角色，禁止上传/删除文档）
+  if (to.meta.writeRequired) {
+    const user = getUser<UserInfo>()
+    if (!canManageDocuments(user?.role)) {
+      return { path: '/knowledge' }
     }
   }
 

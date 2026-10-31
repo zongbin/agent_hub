@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { canManageDocuments } from '@/utils/permission'
 import { Reading, ChatLineRound, Cpu, Search } from '@element-plus/icons-vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
+
+/** 是否可上传文档（查看者与访客为只读角色） */
+const canManage = computed(() => canManageDocuments(authStore.user?.role))
 
 /** 统计数据 */
 const stats = [
@@ -15,36 +20,42 @@ const stats = [
 ]
 
 /** 快速入口 */
-const quickActions = [
-  {
-    title: '上传文档',
-    desc: '将企业文档上传至知识库',
-    path: '/knowledge/upload',
-    icon: Reading,
-    color: '#7C5CFF'
-  },
-  {
-    title: '智能问答',
-    desc: '用自然语言查询知识库',
-    path: '/qa',
-    icon: ChatLineRound,
-    color: '#22D3EE'
-  },
-  {
-    title: '超级智能体',
-    desc: '让 AI 自主完成复杂任务',
-    path: '/agent',
-    icon: Cpu,
-    color: '#F472B6'
-  },
-  {
-    title: '知识搜索',
-    desc: '语义检索散落文档',
-    path: '/knowledge',
-    icon: Search,
-    color: '#A3E635'
-  }
-]
+const quickActions = computed(() =>
+  [
+    {
+      title: '上传文档',
+      desc: '将企业文档上传至知识库',
+      path: '/knowledge/upload',
+      icon: Reading,
+      color: '#7C5CFF',
+      writeRequired: true
+    },
+    {
+      title: '智能问答',
+      desc: '用自然语言查询知识库',
+      path: '/qa',
+      icon: ChatLineRound,
+      color: '#22D3EE',
+      writeRequired: false
+    },
+    {
+      title: '超级智能体',
+      desc: '让 AI 自主完成复杂任务',
+      path: '/agent',
+      icon: Cpu,
+      color: '#F472B6',
+      writeRequired: false
+    },
+    {
+      title: '知识搜索',
+      desc: '语义检索散落文档',
+      path: '/knowledge',
+      icon: Search,
+      color: '#A3E635',
+      writeRequired: false
+    }
+  ].filter((item) => !item.writeRequired || canManage.value)
+)
 </script>
 
 <template>
@@ -68,7 +79,7 @@ const quickActions = [
             <el-icon class="mr-1"><ChatLineRound /></el-icon>
             开始提问
           </el-button>
-          <el-button class="ghost-btn" @click="router.push('/knowledge/upload')">
+          <el-button v-if="canManage" class="ghost-btn" @click="router.push('/knowledge/upload')">
             <el-icon class="mr-1"><Reading /></el-icon>
             上传文档
           </el-button>

@@ -1,17 +1,23 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadInstance } from 'element-plus'
 import { Search, Plus, Refresh, UploadFilled } from '@element-plus/icons-vue'
 import { knowledgeApi, type DocumentStatus, type DocumentVO } from '@/api/knowledge'
 import { useResponsive } from '@/composables/useResponsive'
+import { useAuthStore } from '@/stores/auth'
+import { canManageDocuments } from '@/utils/permission'
 
 const router = useRouter()
 const { isMobile } = useResponsive()
+const authStore = useAuthStore()
 const uploadRef = ref<UploadInstance>()
 const loading = ref(false)
 const documents = ref<DocumentVO[]>([])
+
+/** 是否可上传 / 删除文档（查看者与访客为只读角色） */
+const canManage = computed(() => canManageDocuments(authStore.user?.role))
 
 const searchKey = ref('')
 const filterSecurity = ref('')
@@ -257,7 +263,7 @@ onMounted(() => {
       <div class="toolbar-actions">
         <span class="count-chip">共 {{ pagination.total }} 篇文档</span>
         <el-button :icon="Refresh" circle title="刷新" @click="loadDocuments" />
-        <el-button type="primary" @click="dialogVisible = true">
+        <el-button v-if="canManage" type="primary" @click="dialogVisible = true">
           <el-icon class="mr-1"><Plus /></el-icon>
           上传文档
         </el-button>
@@ -310,14 +316,14 @@ onMounted(() => {
         <el-table-column label="操作" :width="isMobile ? 92 : 150" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleView(row)">查看</el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button v-if="canManage" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <!-- 空状态 -->
       <el-empty v-if="!loading && documents.length === 0" description="暂无文档">
-        <el-button type="primary" @click="dialogVisible = true">上传第一篇文档</el-button>
+        <el-button v-if="canManage" type="primary" @click="dialogVisible = true">上传第一篇文档</el-button>
       </el-empty>
     </div>
 

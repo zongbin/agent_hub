@@ -1,6 +1,7 @@
 package com.leon.agenthub.permission.service;
 
 import com.leon.agenthub.permission.annotation.RequirePermission;
+import com.leon.agenthub.permission.enums.PermissionAction;
 import com.leon.agenthub.permission.dto.AuditLogQuery;
 import com.leon.agenthub.permission.model.AuditLogEntity;
 import com.leon.agenthub.permission.repository.AuditLogRepository;
@@ -42,7 +43,7 @@ public class AuditLogService {
      * @return 分页结果
      */
     @Transactional(readOnly = true)
-    @RequirePermission(resource = "AUDIT_LOG", action = "READ", adminOnly = true)
+    @RequirePermission(resource = "AUDIT_LOG", action = PermissionAction.READ, adminOnly = true)
     public Page<AuditLogEntity> queryAuditLogs(AuditLogQuery query) {
         OffsetDateTime startTime = parseStartTime(query.getStartTime());
         OffsetDateTime endTime = parseEndTime(query.getEndTime());

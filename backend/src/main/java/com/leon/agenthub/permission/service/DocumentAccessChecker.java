@@ -78,6 +78,7 @@ public class DocumentAccessChecker {
      * <p>判定顺序：
      * <ol>
      *   <li>ADMIN —— 全部可写</li>
+     *   <li>只读角色（VIEWER / GUEST）—— 一律不可写，即使持有该文档的 WRITE 授权</li>
      *   <li>持有该文档的 <b>WRITE</b> 授权 —— 管理员显式授予写权限</li>
      *   <li>角色本身对该密级有写权限（EDITOR 对 PUBLIC / INTERNAL）</li>
      * </ol>
@@ -94,12 +95,23 @@ public class DocumentAccessChecker {
         if ("ADMIN".equals(userRole)) {
             return true;
         }
+        // 只读角色永远不可写 —— 角色矩阵优先于文档级授权
+        if (!isWriteRole(userRole)) {
+            return false;
+        }
         if (userId != null && documentId != null
                 && docPermissionRepository.existsByDocumentIdAndGranteeIdAndPermission(
                         documentId, userId, DocumentPermissionType.WRITE.getCode())) {
             return true;
         }
         return canWriteByRole(userRole, securityLevel);
+    }
+
+    /**
+     * 该角色是否具备写权限（查看者与访客为只读角色）。
+     */
+    public boolean isWriteRole(String userRole) {
+        return "ADMIN".equals(userRole) || "EDITOR".equals(userRole);
     }
 
     /**

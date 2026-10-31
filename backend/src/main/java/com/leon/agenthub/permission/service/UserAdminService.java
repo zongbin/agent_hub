@@ -12,6 +12,7 @@ import com.leon.agenthub.auth.model.User;
 import com.leon.agenthub.auth.repository.UserRepository;
 import com.leon.agenthub.common.exception.BusinessException;
 import com.leon.agenthub.permission.annotation.RequirePermission;
+import com.leon.agenthub.permission.enums.PermissionAction;
 import com.leon.agenthub.permission.dto.CreateUserRequest;
 import com.leon.agenthub.permission.dto.ResetPasswordRequest;
 import com.leon.agenthub.permission.dto.RoleInfo;
@@ -40,7 +41,7 @@ public class UserAdminService {
      * 查询用户列表（按创建时间倒序，密码字段已脱敏）。
      */
     @Transactional(readOnly = true)
-    @RequirePermission(resource = "USER", action = "READ", adminOnly = true)
+    @RequirePermission(resource = "USER", action = PermissionAction.READ, adminOnly = true)
     public List<User> listUsers() {
         List<User> users = userRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
         users.forEach(u -> u.setPassword(null));
@@ -50,7 +51,7 @@ public class UserAdminService {
     /**
      * 查询角色字典。
      */
-    @RequirePermission(resource = "USER", action = "READ", adminOnly = true)
+    @RequirePermission(resource = "USER", action = PermissionAction.READ, adminOnly = true)
     public List<RoleInfo> listRoles() {
         return List.of(
                 RoleInfo.builder().code("ADMIN").name("管理员").description("全部权限 + 系统配置").build(),
@@ -64,7 +65,7 @@ public class UserAdminService {
      * 创建用户。
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "USER", action = "WRITE", adminOnly = true)
+    @RequirePermission(resource = "USER", action = PermissionAction.WRITE, adminOnly = true)
     public User createUser(CreateUserRequest request) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new BusinessException(400, "用户名已存在");
@@ -87,7 +88,7 @@ public class UserAdminService {
      * 更新用户基本信息。
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "USER", action = "WRITE", adminOnly = true)
+    @RequirePermission(resource = "USER", action = PermissionAction.WRITE, adminOnly = true)
     public User updateUser(Long userId, UpdateUserRequest request) {
         User user = requireUser(userId);
         if (request.getRealName() != null) user.setRealName(request.getRealName());
@@ -104,7 +105,7 @@ public class UserAdminService {
      * 删除用户（逻辑删除）。
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "USER", action = "WRITE", adminOnly = true)
+    @RequirePermission(resource = "USER", action = PermissionAction.WRITE, adminOnly = true)
     public void deleteUser(Long userId) {
         User user = requireUser(userId);
         user.setDeleted(1);
@@ -116,7 +117,7 @@ public class UserAdminService {
      * 启用/禁用用户。
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "USER", action = "WRITE", adminOnly = true)
+    @RequirePermission(resource = "USER", action = PermissionAction.WRITE, adminOnly = true)
     public void toggleUserStatus(Long userId, UpdateStatusRequest request) {
         User user = requireUser(userId);
         user.setStatus(UserStatus.fromCode(request.getStatus()).getCode());
@@ -128,7 +129,7 @@ public class UserAdminService {
      * 重置用户密码。
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "USER", action = "WRITE", adminOnly = true)
+    @RequirePermission(resource = "USER", action = PermissionAction.WRITE, adminOnly = true)
     public void resetPassword(Long userId, ResetPasswordRequest request) {
         User user = requireUser(userId);
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -140,7 +141,7 @@ public class UserAdminService {
      * 修改用户角色。
      */
     @Transactional(rollbackFor = Exception.class)
-    @RequirePermission(resource = "USER", action = "WRITE", adminOnly = true)
+    @RequirePermission(resource = "USER", action = PermissionAction.WRITE, adminOnly = true)
     public void updateUserRole(Long userId, UpdateRoleRequest request) {
         User user = requireUser(userId);
         user.setRole(request.getRole().toUpperCase());

@@ -59,14 +59,21 @@ public class PermissionService {
         if (!canAccess(role, level)) {
             return false;
         }
-        // 编辑者对机密文档只读
-        if (role == UserRole.EDITOR && level == SecurityLevel.CONFIDENTIAL && write) {
+        // 查看者和访客为只读角色 —— 任何写操作（上传、删除、授权）一律拒绝
+        if (write && isReadOnlyRole(role)) {
             return false;
         }
-        // 查看者和访客只读
-        if ((role == UserRole.VIEWER || role == UserRole.GUEST) && write) {
+        // 编辑者对机密文档只读
+        if (write && role == UserRole.EDITOR && level == SecurityLevel.CONFIDENTIAL) {
             return false;
         }
         return true;
+    }
+
+    /**
+     * 是否为只读角色（查看者 / 访客）。
+     */
+    public boolean isReadOnlyRole(UserRole role) {
+        return role == UserRole.VIEWER || role == UserRole.GUEST;
     }
 }
