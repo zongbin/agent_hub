@@ -10,6 +10,11 @@
 > 开发规范（给 AI 助手）：`CLAUDE.md`
 
 ---
+线上体验地址：https://agent-hub-fronted-337702-13-1520070688.sh.run.tcloudbase.com
+
+<img width="1920" height="919" alt="image" src="https://github.com/user-attachments/assets/592ce7e7-2ea7-48ce-9663-cd8e4cc0814d" />
+
+---
 
 ## 当前完成情况
 
