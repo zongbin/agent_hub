@@ -2,6 +2,7 @@ package com.leon.agenthub.permission.service;
 
 import java.util.List;
 
+import jakarta.persistence.EntityManager;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class UserAdminService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final EntityManager entityManager;
 
     /**
      * 查询用户列表（按创建时间倒序，密码字段已脱敏）。
@@ -67,6 +69,9 @@ public class UserAdminService {
     @Transactional(rollbackFor = Exception.class)
     @RequirePermission(resource = "USER", action = PermissionAction.WRITE, adminOnly = true)
     public User createUser(CreateUserRequest request) {
+        if (request.getPassword() == null || request.getPassword().isBlank()) {
+            throw new BusinessException(400, "密码不能为空");
+        }
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new BusinessException(400, "用户名已存在");
         }
@@ -79,6 +84,8 @@ public class UserAdminService {
         user.setDepartment(request.getDepartment());
         user.setStatus(UserStatus.ENABLED.getCode());
         userRepository.save(user);
+        // 脱管后再清空密码，避免 Hibernate 脏检查将 password=null 刷回数据库（NOT NULL 约束冲突）
+        entityManager.detach(user);
         user.setPassword(null);
         log.info("User created: {}", user.getUsername());
         return user;
@@ -96,6 +103,8 @@ public class UserAdminService {
         if (request.getDepartment() != null) user.setDepartment(request.getDepartment());
         if (request.getRole() != null) user.setRole(request.getRole().toUpperCase());
         userRepository.save(user);
+        // 脱管后再清空密码，避免 Hibernate 脏检查将 password=null 刷回数据库（NOT NULL 约束冲突）
+        entityManager.detach(user);
         user.setPassword(null);
         log.info("User {} updated", userId);
         return user;

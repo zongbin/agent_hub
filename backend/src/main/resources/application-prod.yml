@@ -1,9 +1,23 @@
 # 生产环境配置 — 覆盖 application.yml
 spring:
-  flyway:
-    clean-disabled: true
+  ai:
+    dashscope:
+      api-key: sk-ws-H.PYPMPEE.IerD.MEUCIAVAe8A9GlJqVl2vqlFrlnz-PbmAulbAc85LZ6pAxDLcAiEA7nWQdAbv3SQKFrpJ8UlHWnwH15qcaXxjbBpV9kU83Lw
+  datasource:
+    url: jdbc:postgresql://rm-cn-usr50fnuz0001hgo.rwlb.rds.aliyuncs.com:5432/ai_agent
+    username: leon
+    password: Chen081694
 
 logging:
   level:
-    com.leon.agenthub: INFO
-    org.mybatis: WARN
+    com.leon.agenthub: DEBUG
+    org.mybatis: DEBUG
+
+agenthub:
+  storage:
+    root-path: ./data/docs
+
+  agent:
+    # 超级智能体工具配置（文件读写 / PDF 生成 / 资源下载 / 网页爬取 / 网页搜索）
+    tool:
+      web-search-api-key: Aife481cSueMN7geowvTxfM5

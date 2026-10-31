@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import type { UserItem, RoleInfo, CreateUserRequest } from '@/types/permission'
 import { permissionApi } from '@/api/permission'
@@ -29,6 +29,21 @@ const createForm = ref<CreateUserRequest>({
 })
 const creating = ref(false)
 const createFormRef = ref()
+
+/** 新建用户表单验证规则 */
+const createFormRules: FormRules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 32, message: '用户名长度 3-32 位', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, max: 64, message: '密码长度 6-64 位', trigger: 'blur' }
+  ],
+  role: [
+    { required: true, message: '请选择角色', trigger: 'change' }
+  ]
+}
 
 /** 角色中文映射 */
 const roleLabelMap: Record<string, string> = {
@@ -244,14 +259,15 @@ onMounted(() => {
       <el-form
         ref="createFormRef"
         :model="createForm"
+        :rules="createFormRules"
         :label-width="isMobile ? '0' : '90px'"
         :label-position="isMobile ? 'top' : 'right'"
         class="create-form"
       >
-        <el-form-item label="用户名" required>
+        <el-form-item label="用户名" prop="username">
           <el-input v-model="createForm.username" placeholder="3-32 位字符" />
         </el-form-item>
-        <el-form-item label="密码" required>
+        <el-form-item label="密码" prop="password">
           <el-input
             v-model="createForm.password"
             type="password"
@@ -268,7 +284,7 @@ onMounted(() => {
         <el-form-item label="部门">
           <el-input v-model="createForm.department" placeholder="选填" />
         </el-form-item>
-        <el-form-item label="角色" required>
+        <el-form-item label="角色" prop="role">
           <el-select v-model="createForm.role" placeholder="选择角色" style="width: 100%">
             <el-option
               v-for="role in roles"
